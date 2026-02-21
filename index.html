@@ -326,6 +326,21 @@
     cursor: pointer;
   }
   .reset-btn:hover { background: rgba(255,100,100,0.2); color: #fff; }
+  .share-data-btn {
+    display: block;
+    width: 100%;
+    margin-top: 28px;
+    padding: 10px;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    color: rgba(255,255,255,0.35);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 0.3px;
+  }
+  .share-data-btn:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.3); }
 
   /* Loading / Error states */
   .loading {
@@ -1553,6 +1568,7 @@ function render() {
           `;
         })()}
         ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
+        <button class="share-data-btn" onclick="shareUserData()">📤 Share my data with developer</button>
       </div>
     </div>
   `;
@@ -1956,6 +1972,59 @@ function deleteLocation(id) {
     state.activeLocationId = null;
   }
   renderLocationsMenu();
+}
+
+// ─── Share user data ───
+async function shareUserData() {
+  const log = loadFeedbackLog();
+  const payload = {
+    version: 2,
+    exportDate: new Date().toISOString(),
+    appVersion: 'sweater-weather-v1',
+    totalLogs: state.profile.entries,
+    profile: {
+      tempOffset: state.profile.tempOffset,
+      windOffset: state.profile.windOffset,
+      entries: state.profile.entries,
+      lastLogDate: state.profile.lastLogDate,
+      ranges: state.profile.ranges,
+    },
+    log: log.map(e => ({
+      date: e.date,
+      feelsLike: e.feelsLike,
+      wind: e.wind,
+      comfort: e.comfort,
+      warmthScore: e.warmthScore,
+      items: e.items,
+    })),
+  };
+
+  const text = JSON.stringify(payload, null, 2);
+
+  // Try native share sheet first (works great on iPhone)
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Sweater Weather — My Data',
+        text: text,
+      });
+      showToast('Data shared! Thank you 🙌');
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') return; // user cancelled
+    }
+  }
+
+  // Fallback: copy to clipboard
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Data copied to clipboard — paste it in a message to the developer!');
+  } catch(e) {
+    // Last resort: open in a new window they can copy from
+    const w = window.open('', '_blank');
+    w.document.write('<pre style="font-size:12px;padding:16px;">' + text + '</pre>');
+    w.document.title = 'Sweater Weather Data Export';
+  }
 }
 
 // ─── Toast ───
