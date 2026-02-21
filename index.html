@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sweater Weather</title>
+<style>
+  :root {
+    --bg-start: #4a90d9;
+    --bg-end: #87ceeb;
+    --card-bg: rgba(255,255,255,0.18);
+    --card-border: rgba(255,255,255,0.25);
+    --text: #fff;
+    --text-muted: rgba(255,255,255,0.75);
+    --accent: #ffd166;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+    color: var(--text);
+    transition: background 1s ease;
+    overflow-x: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 100px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 24px 0 8px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .header .location {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    cursor: pointer;
+  }
+  .header .location:hover { text-decoration: underline; }
+
+  /* Day navigation */
+  .day-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 0 4px;
+  }
+  .day-nav .day-label {
+    font-size: 18px;
+    font-weight: 600;
+    min-width: 180px;
+    text-align: center;
+    transition: opacity 0.2s;
+  }
+  .day-nav .nav-arrow {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .nav-arrow:hover { background: rgba(255,255,255,0.22); }
+  .nav-arrow:disabled { opacity: 0.25; cursor: default; }
+  .nav-arrow:disabled:hover { background: rgba(255,255,255,0.1); }
+
+  /* Day dots */
+  .day-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 0 16px;
+  }
+  .day-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transition: all 0.25s;
+    cursor: pointer;
+  }
+  .day-dot.active {
+    background: #fff;
+    width: 24px;
+    border-radius: 4px;
+  }
+
+  /* Swipe wrapper */
+  .swipe-area {
+    touch-action: pan-y;
+    transition: transform 0.05s linear;
+  }
+  .swipe-area.animating {
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Card base */
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  /* Summary card */
+  .summary-card { padding: 24px; }
+  .summary-card .temp-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+  }
+  .summary-card .current-temp {
+    font-size: 64px;
+    font-weight: 200;
+    line-height: 1;
+  }
+  .summary-card .current-temp span { font-size: 32px; vertical-align: super; }
+  .summary-card .high-low {
+    font-size: 15px;
+    color: var(--text-muted);
+    padding-bottom: 10px;
+  }
+  .summary-card .feels-like {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .summary-card .recommendation {
+    font-size: 22px;
+    font-weight: 600;
+    margin-top: 16px;
+  }
+  .summary-card .narrative {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-style: italic;
+  }
+
+  /* Timeline */
+  .timeline-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .timeline-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+  }
+  .timeline-scroll::-webkit-scrollbar { display: none; }
+
+  .time-slot {
+    flex: 0 0 auto;
+    width: 80px;
+    text-align: center;
+    padding: 14px 8px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
+    transition: background 0.2s;
+  }
+  .time-slot.now {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.4);
+  }
+  .time-slot .time { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .time-slot .slot-icon { font-size: 28px; margin: 6px 0; }
+  .time-slot .slot-temp { font-size: 18px; font-weight: 600; }
+  .time-slot .slot-rec { font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }
+  .time-slot .slot-wind { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Feedback */
+  .feedback-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .feedback-section { margin-bottom: 16px; }
+  .feedback-section label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .btn-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .btn-group button {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 6px;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-group button:hover { background: rgba(255,255,255,0.18); }
+  .btn-group button.selected {
+    background: rgba(255,255,255,0.3);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .comfort-btn-group { display: flex; gap: 8px; }
+  .comfort-btn-group button {
+    flex: 1;
+    padding: 12px 8px;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .comfort-btn-group button:hover { background: rgba(255,255,255,0.18); }
+  .comfort-btn-group button.selected {
+    background: rgba(255,255,255,0.3);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .comfort-btn-group button .comfort-label {
+    display: block;
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  .submit-feedback {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    background: var(--accent);
+    color: #1a1a2e;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+    margin-top: 4px;
+  }
+  .submit-feedback:hover { transform: scale(1.02); }
+  .submit-feedback:active { transform: scale(0.98); }
+  .submit-feedback:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Profile card */
+  .profile-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+  .profile-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .profile-stat:last-child { border-bottom: none; }
+  .profile-stat .label { color: var(--text-muted); }
+  .profile-stat .value { font-weight: 600; }
+  .reset-btn {
+    margin-top: 12px;
+    padding: 8px 16px;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .reset-btn:hover { background: rgba(255,100,100,0.2); color: #fff; }
+
+  /* Loading / Error states */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .loading .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-card {
+    text-align: center;
+    padding: 30px;
+  }
+  .error-card .error-icon { font-size: 36px; margin-bottom: 12px; }
+  .error-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+  .retry-btn {
+    padding: 10px 24px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  /* Suggestion pills */
+  .suggestions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .suggestion-pill {
+    flex: 1;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 14px 14px;
+    text-align: center;
+  }
+  .suggestion-pill .pill-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .suggestion-pill .pill-icon {
+    font-size: 28px;
+    margin-bottom: 4px;
+  }
+  .suggestion-pill .pill-rec {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .suggestion-pill .pill-temp {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  /* 7-day forecast */
+  .forecast-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .forecast-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 10px;
+    margin: 0 -8px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .forecast-row:last-child { border-bottom: none; }
+  .forecast-row:hover { background: rgba(255,255,255,0.08); }
+  .forecast-row.active-day { background: rgba(255,255,255,0.12); }
+  .forecast-row .fc-day {
+    width: 72px;
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .forecast-row .fc-icon {
+    font-size: 22px;
+    width: 36px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .forecast-row .fc-rec {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 0 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .forecast-row .fc-temps {
+    display: flex;
+    gap: 6px;
+    font-size: 14px;
+    flex-shrink: 0;
+    min-width: 70px;
+    justify-content: flex-end;
+  }
+  .forecast-row .fc-hi { font-weight: 600; }
+  .forecast-row .fc-lo { color: var(--text-muted); }
+  .forecast-row .fc-arrow {
+    margin-left: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Accessories alert */
+  .accessories-alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .accessories-alert .alert-icon { font-size: 20px; flex-shrink: 0; }
+  .accessories-alert .alert-text { color: var(--text-muted); }
+  .accessories-alert .alert-text strong { color: var(--text); }
+
+  /* Log button */
+  .log-btn {
+    width: 100%;
+    padding: 16px;
+    border: 2px dashed rgba(255,255,255,0.3);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .log-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.4); }
+  .log-btn:active { transform: scale(0.98); }
+  .log-btn .log-btn-icon { font-size: 20px; }
+
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal-sheet {
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: linear-gradient(135deg, #2b3a55, #3d5a80);
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 36px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .modal-overlay.open .modal-sheet {
+    transform: translateY(0);
+  }
+  .modal-handle {
+    width: 36px;
+    height: 4px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .modal-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .modal-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin: 16px 0 8px;
+  }
+  .modal-section-label:first-of-type { margin-top: 0; }
+  .clothing-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .clothing-chip {
+    padding: 8px 14px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .clothing-chip:hover { background: rgba(255,255,255,0.15); }
+  .clothing-chip.selected {
+    background: rgba(255,215,102,0.25);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .clothing-chip .chip-icon { font-size: 16px; }
+
+  .modal-comfort {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .modal-comfort-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .modal-comfort-btns {
+    display: flex;
+    gap: 10px;
+  }
+  .modal-comfort-btns button {
+    flex: 1;
+    padding: 12px 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .modal-comfort-btns button:hover { background: rgba(255,255,255,0.15); }
+  .modal-comfort-btns button.selected {
+    background: rgba(255,215,102,0.25);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .modal-comfort-btns button .mc-label {
+    display: block;
+    font-size: 10px;
+    margin-top: 4px;
+  }
+
+  .modal-submit {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    background: var(--accent);
+    color: #1a1a2e;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .modal-submit:hover { transform: scale(1.02); }
+  .modal-submit:active { transform: scale(0.98); }
+  .modal-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .modal-cancel {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <div class="loading" id="loading-state">
+    <div class="spinner"></div>
+    <p>Finding your location...</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───
+const TOTAL_DAYS = 7;
+const state = {
+  weather: null,
+  location: null,
+  profile: loadProfile(),
+  feedbackWore: null,
+  feedbackComfort: null,
+  currentDay: 0,
+  logModalOpen: false,
+  selectedItems: [],
+  logComfort: null,
+};
+
+// ─── Clothing items for logging ───
+const CLOTHING_ITEMS = {
+  tops: [
+    { id: 'tank-top',      label: 'Tank top',       icon: '👕', warmth: 0 },
+    { id: 'tshirt',        label: 'T-shirt',        icon: '👕', warmth: 1 },
+    { id: 'long-sleeve',   label: 'Long sleeve',    icon: '👔', warmth: 2 },
+    { id: 'sweater',       label: 'Sweater/Hoodie', icon: '🧶', warmth: 3 },
+    { id: 'light-jacket',  label: 'Light jacket',   icon: '🧥', warmth: 4 },
+    { id: 'heavy-jacket',  label: 'Heavy jacket',   icon: '🧥', warmth: 5 },
+  ],
+  bottoms: [
+    { id: 'shorts',        label: 'Shorts',         icon: '🩳', warmth: 0 },
+    { id: 'light-pants',   label: 'Light pants',    icon: '👖', warmth: 2 },
+    { id: 'jeans',         label: 'Jeans/Heavy pants', icon: '👖', warmth: 3 },
+  ],
+  accessories: [
+    { id: 'hat',           label: 'Hat / Beanie',   icon: '🧢', warmth: 3 },
+    { id: 'gloves',        label: 'Gloves',         icon: '🧤', warmth: 4 },
+    { id: 'scarf',         label: 'Scarf',          icon: '🧣', warmth: 4 },
+    { id: 'sunglasses',    label: 'Sunglasses',     icon: '🕶️', warmth: 0 },
+    { id: 'umbrella',      label: 'Umbrella',       icon: '☂️', warmth: 0 },
+  ],
+};
+
+// ─── Profile persistence ───
+function loadProfile() {
+  try {
+    const saved = localStorage.getItem('sweater-weather-profile');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return { tempOffset: 0, windOffset: 0, entries: 0 };
+}
+
+function saveProfile(profile) {
+  localStorage.setItem('sweater-weather-profile', JSON.stringify(profile));
+}
+
+function loadFeedbackLog() {
+  try {
+    const saved = localStorage.getItem('sweater-weather-log');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return [];
+}
+
+function saveFeedbackLog(log) {
+  localStorage.setItem('sweater-weather-log', JSON.stringify(log));
+}
+
+// ─── Weather API (7 days) ───
+async function fetchWeather(lat, lon) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=${TOTAL_DAYS}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Weather fetch failed');
+  return res.json();
+}
+
+async function reverseGeocode(lat, lon) {
+  try {
+    const nom = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+    const data = await nom.json();
+    const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || '';
+    const st = data.address?.state || data.address?.country || '';
+    return city ? `${city}, ${st}` : `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+  } catch(e) {
+    return `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+  }
+}
+
+// ─── Day helpers ───
+function getDayDate(dayOffset) {
+  const d = new Date();
+  d.setDate(d.getDate() + dayOffset);
+  return d;
+}
+
+function getDayLabel(dayOffset) {
+  if (dayOffset === 0) return 'Today';
+  if (dayOffset === 1) return 'Tomorrow';
+  const d = getDayDate(dayOffset);
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+function getShortDayLabel(dayOffset) {
+  if (dayOffset === 0) return 'Today';
+  if (dayOffset === 1) return 'Tomorrow';
+  const d = getDayDate(dayOffset);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return days[d.getDay()];
+}
+
+function getDayMiddayRec(dayIdx, hourly, daily, profile) {
+  // Get midday (1pm) feels-like and wind for a given day index
+  const dayIndices = getHourlyIndicesForDay(hourly.time, dayIdx);
+  const middayIdx = dayIndices.find(i => new Date(hourly.time[i]).getHours() === 13);
+  const fallbackIdx = dayIndices[Math.floor(dayIndices.length / 2)];
+  const idx = middayIdx !== undefined ? middayIdx : fallbackIdx;
+  if (idx === undefined) return getRecommendation(50, 0, profile);
+  const feels = Math.round(hourly.apparent_temperature[idx]);
+  const wind = Math.round(hourly.wind_speed_10m[idx]);
+  return getRecommendation(feels, wind, profile);
+}
+
+function getHourlyIndicesForDay(hourlyTimes, dayOffset) {
+  const target = getDayDate(dayOffset);
+  const targetDate = target.toISOString().slice(0, 10);
+  const indices = [];
+  for (let i = 0; i < hourlyTimes.length; i++) {
+    if (hourlyTimes[i].startsWith(targetDate)) {
+      indices.push(i);
+    }
+  }
+  return indices;
+}
+
+// ─── Recommendation engine ───
+const CLOTHING_LEVELS = [
+  { id: 'shorts-tee',       label: 'Shorts & t-shirt',         short: 'Shorts & t-shirt', icon: '☀️', minFeels: 80 },
+  { id: 'tee-pants',        label: 'T-shirt & light pants',    short: 'T-shirt & pants',  icon: '🌤️', minFeels: 68 },
+  { id: 'light-jacket',     label: 'Light jacket',             short: 'Light jacket',    icon: '🧥', minFeels: 55 },
+  { id: 'jacket',           label: 'Jacket',                   short: 'Jacket',          icon: '🧥', minFeels: 42 },
+  { id: 'heavy-jacket',     label: 'Heavy jacket',             short: 'Heavy jacket',    icon: '🧣', minFeels: 28 },
+  { id: 'heavy-layers',     label: 'Heavy jacket & layers',    short: 'Layers',          icon: '🥶', minFeels: -Infinity },
+];
+
+function getRecommendation(feelsLike, windSpeed, profile) {
+  const adjustedFeels = feelsLike + (profile?.tempOffset || 0);
+  const windAdjust = windSpeed > 20 ? -6 : windSpeed > 15 ? -3 : 0;
+  const effective = adjustedFeels + windAdjust + (profile?.windOffset || 0);
+
+  for (const level of CLOTHING_LEVELS) {
+    if (effective >= level.minFeels) return { ...level, effective };
+  }
+  return { ...CLOTHING_LEVELS[CLOTHING_LEVELS.length - 1], effective };
+}
+
+function getWeatherIcon(code) {
+  if (code <= 1) return '☀️';
+  if (code <= 3) return '⛅';
+  if (code <= 48) return '☁️';
+  if (code <= 67) return '🌧️';
+  if (code <= 77) return '🌨️';
+  if (code <= 82) return '🌧️';
+  if (code <= 86) return '🌨️';
+  if (code >= 95) return '⛈️';
+  return '🌤️';
+}
+
+// ─── Narrative generation ───
+function generateNarrative(slots, profile, dayOffset) {
+  if (!slots || slots.length === 0) return '';
+
+  const morning = slots.filter(s => s.hour >= 6 && s.hour <= 10);
+  const midday = slots.filter(s => s.hour >= 11 && s.hour <= 14);
+  const evening = slots.filter(s => s.hour >= 17 && s.hour <= 21);
+
+  const morningRec = morning.length ? getRecommendation(morning[0].feelsLike, morning[0].wind, profile) : null;
+  const middayRec = midday.length ? getRecommendation(midday[Math.floor(midday.length/2)].feelsLike, midday[Math.floor(midday.length/2)].wind, profile) : null;
+  const eveningRec = evening.length ? getRecommendation(evening[0].feelsLike, evening[0].wind, profile) : null;
+
+  const dayWord = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : getDayLabel(dayOffset).split(',')[0];
+  let parts = [];
+
+  if (morningRec && middayRec && eveningRec) {
+    if (morningRec.id === middayRec.id && middayRec.id === eveningRec.id) {
+      parts.push(`A steady day — ${morningRec.label.toLowerCase()} weather all through.`);
+    } else {
+      parts.push(`Start with a ${morningRec.label.toLowerCase()} in the morning`);
+      if (CLOTHING_LEVELS.indexOf(CLOTHING_LEVELS.find(c => c.id === middayRec.id)) < CLOTHING_LEVELS.indexOf(CLOTHING_LEVELS.find(c => c.id === morningRec.id))) {
+        parts[0] += `, you can lighten up to ${middayRec.short.toLowerCase()} by midday`;
+      } else if (middayRec.id !== morningRec.id) {
+        parts[0] += `, switch to a ${middayRec.label.toLowerCase()} by midday`;
+      }
+      if (eveningRec.id !== middayRec.id) {
+        const eveningIdx = CLOTHING_LEVELS.findIndex(c => c.id === eveningRec.id);
+        const middayIdx = CLOTHING_LEVELS.findIndex(c => c.id === middayRec.id);
+        if (eveningIdx > middayIdx) {
+          parts[0] += `, and bring a layer for the evening.`;
+        } else {
+          parts[0] += `, and it stays comfortable into the evening.`;
+        }
+      } else {
+        parts[0] += '.';
+      }
+    }
+  } else if (morningRec) {
+    parts.push(`The morning calls for a ${morningRec.label.toLowerCase()}.`);
+  }
+
+  const avgWind = slots.reduce((a, s) => a + s.wind, 0) / slots.length;
+  if (avgWind > 15) {
+    parts.push(`Breezy ${dayWord} — wind around ${Math.round(avgWind)} mph.`);
+  }
+
+  const rainySlots = slots.filter(s => s.weatherCode > 50 && s.weatherCode < 90);
+  if (rainySlots.length > 0) {
+    parts.push("Grab an umbrella — rain is expected.");
+  }
+
+  return parts.join(' ');
+}
+
+// ─── Background gradient ───
+function updateBackground(feelsLike) {
+  let start, end;
+  if (feelsLike >= 85) { start = '#e85d04'; end = '#f48c06'; }
+  else if (feelsLike >= 75) { start = '#e07b39'; end = '#f4a261'; }
+  else if (feelsLike >= 65) { start = '#5a9fd4'; end = '#89c2d9'; }
+  else if (feelsLike >= 50) { start = '#4a7c9b'; end = '#6fa8c7'; }
+  else if (feelsLike >= 35) { start = '#3d5a80'; end = '#5b8aa8'; }
+  else { start = '#2b3a55'; end = '#415a77'; }
+
+  document.documentElement.style.setProperty('--bg-start', start);
+  document.documentElement.style.setProperty('--bg-end', end);
+}
+
+// ─── Navigation ───
+function goToDay(day) {
+  state.currentDay = Math.max(0, Math.min(TOTAL_DAYS - 1, day));
+  render();
+}
+
+// ─── Render ───
+function render() {
+  const app = document.getElementById('app');
+  const w = state.weather;
+  if (!w) return;
+
+  const hourly = w.hourly;
+  const daily = w.daily;
+  const dayOffset = state.currentDay;
+  const isToday = dayOffset === 0;
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  // Get hourly data for selected day + next day (for 24hr coverage)
+  const dayIndices = getHourlyIndicesForDay(hourly.time, dayOffset);
+  const nextDayIndices = dayOffset < TOTAL_DAYS - 1 ? getHourlyIndicesForDay(hourly.time, dayOffset + 1) : [];
+  const allDayIndices = [...dayIndices, ...nextDayIndices];
+
+  // Build hourly slots for next 24 hours
+  let timelineSlots = [];
+  if (isToday) {
+    // Start from current hour, go 24 hours ahead
+    for (let offset = 0; offset < 24; offset++) {
+      const targetH = currentHour + offset;
+      const idx = allDayIndices.find(i => {
+        const d = new Date(hourly.time[i]);
+        const totalHours = d.getDate() * 24 + d.getHours();
+        const nowTotal = now.getDate() * 24 + currentHour + offset;
+        return d.getHours() === (targetH % 24) && Math.abs(totalHours - nowTotal) < 2;
+      });
+      // Simpler: just find by sequential index from current hour
+      const searchIdx = dayIndices.find(i => new Date(hourly.time[i]).getHours() === currentHour) || dayIndices[0];
+      const absIdx = (searchIdx !== undefined ? searchIdx : 0) + offset;
+      if (absIdx < hourly.time.length) {
+        const h = new Date(hourly.time[absIdx]).getHours();
+        timelineSlots.push({
+          hour: h,
+          hourOffset: offset,
+          temp: Math.round(hourly.temperature_2m[absIdx]),
+          feelsLike: Math.round(hourly.apparent_temperature[absIdx]),
+          wind: Math.round(hourly.wind_speed_10m[absIdx]),
+          weatherCode: hourly.weather_code[absIdx],
+          isNow: offset === 0,
+          isNextDay: offset > 0 && h < currentHour,
+        });
+      }
+    }
+  } else {
+    // For future days: show full 24 hours (midnight to 11pm)
+    dayIndices.forEach(i => {
+      const h = new Date(hourly.time[i]).getHours();
+      timelineSlots.push({
+        hour: h,
+        hourOffset: h,
+        temp: Math.round(hourly.temperature_2m[i]),
+        feelsLike: Math.round(hourly.apparent_temperature[i]),
+        wind: Math.round(hourly.wind_speed_10m[i]),
+        weatherCode: hourly.weather_code[i],
+        isNow: false,
+        isNextDay: false,
+      });
+    });
+  }
+
+  // Keep the 2-hour slots for narrative/day-rec calculations
+  const targetHours = [];
+  for (let h = 7; h <= 21; h += 2) targetHours.push(h);
+  const slots = targetHours.map(h => {
+    const idx = dayIndices.find(i => new Date(hourly.time[i]).getHours() === h);
+    if (idx === undefined) return null;
+    return {
+      hour: h,
+      feelsLike: Math.round(hourly.apparent_temperature[idx]),
+      wind: Math.round(hourly.wind_speed_10m[idx]),
+      weatherCode: hourly.weather_code[idx],
+    };
+  }).filter(Boolean);
+
+  const displaySlots = timelineSlots;
+
+  // Representative temp for the day
+  let repTemp, repFeels, repWind, repCode;
+  if (isToday) {
+    const currentIdx = dayIndices.find(i => new Date(hourly.time[i]).getHours() === currentHour);
+    if (currentIdx !== undefined) {
+      repTemp = Math.round(hourly.temperature_2m[currentIdx]);
+      repFeels = Math.round(hourly.apparent_temperature[currentIdx]);
+      repWind = Math.round(hourly.wind_speed_10m[currentIdx]);
+      repCode = hourly.weather_code[currentIdx];
+    }
+  }
+  // Fallback or future day: use midday (~1pm)
+  if (repTemp === undefined) {
+    const middaySlot = slots.find(s => s.hour === 13) || slots[Math.floor(slots.length / 2)] || slots[0];
+    if (middaySlot) {
+      repTemp = middaySlot.temp;
+      repFeels = middaySlot.feelsLike;
+      repWind = middaySlot.wind;
+      repCode = middaySlot.weatherCode;
+    } else {
+      repTemp = '--'; repFeels = 50; repWind = 0; repCode = 0;
+    }
+  }
+
+  const hiTemp = daily ? Math.round(daily.temperature_2m_max[dayOffset]) : null;
+  const loTemp = daily ? Math.round(daily.temperature_2m_min[dayOffset]) : null;
+  const dayCode = daily ? daily.weather_code[dayOffset] : repCode;
+
+  const currentRec = getRecommendation(repFeels, repWind, state.profile);
+  updateBackground(repFeels);
+
+  const narrative = generateNarrative(slots, state.profile, dayOffset);
+
+  // "Right now" rec (current hour) vs "For the day" rec (warmest layer needed across all slots)
+  const nowRec = currentRec; // already based on current/rep conditions
+  // For the day: find the slot that needs the warmest clothing (highest index in CLOTHING_LEVELS)
+  let dayRecResult = nowRec;
+  if (slots.length > 0) {
+    let warmestIdx = -1;
+    slots.forEach(s => {
+      const r = getRecommendation(s.feelsLike, s.wind, state.profile);
+      const idx = CLOTHING_LEVELS.findIndex(c => c.id === r.id);
+      if (idx > warmestIdx) {
+        warmestIdx = idx;
+        dayRecResult = r;
+      }
+    });
+  }
+
+  const formatHour = (h) => {
+    if (h === 0 || h === 12) return h === 0 ? '12am' : '12pm';
+    return h > 12 ? `${h-12}pm` : `${h}am`;
+  };
+
+  app.innerHTML = `
+    <header class="header">
+      <h1>${getWeatherIcon(dayCode)} Sweater Weather</h1>
+      <div class="location" onclick="requestLocation()">${state.location || 'Detecting location...'}</div>
+    </header>
+
+    <div class="day-nav">
+      <button class="nav-arrow" onclick="goToDay(${dayOffset - 1})" ${dayOffset === 0 ? 'disabled' : ''}>‹</button>
+      <div class="day-label">${getDayLabel(dayOffset)}</div>
+      <button class="nav-arrow" onclick="goToDay(${dayOffset + 1})" ${dayOffset >= TOTAL_DAYS - 1 ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="day-dots">
+      ${Array.from({length: TOTAL_DAYS}, (_, i) =>
+        `<div class="day-dot${i === dayOffset ? ' active' : ''}" onclick="goToDay(${i})"></div>`
+      ).join('')}
+    </div>
+
+    <div class="swipe-area" id="swipe-area">
+      <div class="suggestions">
+        <div class="suggestion-pill">
+          <div class="pill-label">${isToday ? 'Right Now' : 'Midday'}</div>
+          <div class="pill-icon">${nowRec.icon}</div>
+          <div class="pill-rec">${nowRec.short}</div>
+          <div class="pill-temp">${repFeels}°F feels like</div>
+        </div>
+        <div class="suggestion-pill">
+          <div class="pill-label">For the Day</div>
+          <div class="pill-icon">${dayRecResult.icon}</div>
+          <div class="pill-rec">${dayRecResult.short}</div>
+          <div class="pill-temp">${nowRec.id !== dayRecResult.id ? 'Bring this along' : 'All day'}</div>
+        </div>
+      </div>
+
+      ${(() => {
+        // Check if any slot today (or the rep temp) is below 40 — suggest hat & gloves
+        const coldFeels = isToday ? repFeels : Math.round(daily.temperature_2m_min[dayOffset]);
+        const anySlotBelow40 = slots.some(s => s.feelsLike < 40) || coldFeels < 40;
+        if (anySlotBelow40) {
+          return '<div class="accessories-alert"><span class="alert-icon">🧤</span><div class="alert-text"><strong>Hat & gloves weather!</strong> Feels like temps drop below 40°F — bundle up your extremities.</div></div>';
+        }
+        return '';
+      })()}
+
+      <div class="card summary-card">
+        <div class="temp-row">
+          <div class="current-temp">${repTemp}<span>°F</span></div>
+          ${hiTemp !== null ? `<div class="high-low">H:${hiTemp}° L:${loTemp}°</div>` : ''}
+        </div>
+        <div class="feels-like">Feels like ${repFeels}°F · Wind ${repWind} mph</div>
+        <div class="recommendation">${currentRec.icon} ${currentRec.label}</div>
+        ${narrative ? `<div class="narrative">"${narrative}"</div>` : ''}
+      </div>
+
+      <div class="card">
+        <div class="timeline-title">${isToday ? 'Next 24 Hours' : getDayLabel(dayOffset)}</div>
+        <div class="timeline-scroll">
+          ${displaySlots.map((s, i) => {
+            const rec = getRecommendation(s.feelsLike, s.wind, state.profile);
+            const showDayBreak = isToday && s.isNextDay && (i === 0 || !displaySlots[i-1].isNextDay);
+            return (showDayBreak ? '<div class="time-slot" style="width:auto;min-width:50px;background:rgba(255,215,102,0.12);border-color:rgba(255,215,102,0.2);padding:14px 10px;"><div class="time" style="color:var(--accent);font-size:10px;">TMRW</div><div class="slot-icon">→</div><div class="slot-temp"></div></div>' : '') + `
+              <div class="time-slot${s.isNow ? ' now' : ''}">
+                <div class="time">${s.isNow ? 'Now' : formatHour(s.hour)}</div>
+                <div class="slot-icon">${getWeatherIcon(s.weatherCode)}</div>
+                <div class="slot-temp">${s.feelsLike}°</div>
+                <div class="slot-rec">${rec.short}</div>
+                <div class="slot-wind">${s.wind} mph</div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="forecast-title">7-Day Forecast</div>
+        ${Array.from({length: TOTAL_DAYS}, (_, i) => {
+          const hi = daily ? Math.round(daily.temperature_2m_max[i]) : '--';
+          const lo = daily ? Math.round(daily.temperature_2m_min[i]) : '--';
+          const code = daily ? daily.weather_code[i] : 0;
+          const rec = getDayMiddayRec(i, hourly, daily, state.profile);
+          return `
+            <div class="forecast-row${i === dayOffset ? ' active-day' : ''}" onclick="goToDay(${i})">
+              <div class="fc-day">${getShortDayLabel(i)}</div>
+              <div class="fc-icon">${getWeatherIcon(code)}</div>
+              <div class="fc-rec">${rec.short}</div>
+              <div class="fc-temps">
+                <span class="fc-hi">${hi}°</span>
+                <span class="fc-lo">${lo}°</span>
+              </div>
+              <div class="fc-arrow">›</div>
+            </div>`;
+        }).join('')}
+      </div>
+
+      ${isToday ? `
+      <button class="log-btn" onclick="openLogModal()">
+        <span class="log-btn-icon">👕</span> Log What I'm Wearing
+      </button>
+      ` : ''}
+
+      <div class="card profile-card">
+        <h3>Your Comfort Profile</h3>
+        <div class="profile-stat">
+          <span class="label">Feedback entries</span>
+          <span class="value">${state.profile.entries}</span>
+        </div>
+        <div class="profile-stat">
+          <span class="label">Temperature feel</span>
+          <span class="value">${state.profile.tempOffset === 0 ? 'Baseline' :
+            state.profile.tempOffset > 0 ? `Runs warm (+${state.profile.tempOffset.toFixed(1)}°)` :
+            `Runs cold (${state.profile.tempOffset.toFixed(1)}°)`}</span>
+        </div>
+        <div class="profile-stat">
+          <span class="label">Wind sensitivity</span>
+          <span class="value">${state.profile.windOffset === 0 ? 'Average' :
+            state.profile.windOffset < 0 ? 'More sensitive' : 'Less sensitive'}</span>
+        </div>
+        <div class="profile-stat">
+          <span class="label">Personalization</span>
+          <span class="value">${state.profile.entries < 5 ? 'Getting started' :
+            state.profile.entries < 15 ? 'Learning...' : 'Dialed in ✓'}</span>
+        </div>
+        ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
+      </div>
+    </div>
+  `;
+
+  // Re-attach swipe listeners
+  initSwipe();
+}
+
+// ─── Swipe gesture ───
+let touchStartX = 0;
+let touchStartY = 0;
+let touchDeltaX = 0;
+let isSwiping = false;
+
+function initSwipe() {
+  const el = document.getElementById('swipe-area');
+  if (!el) return;
+
+  el.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchDeltaX = 0;
+    isSwiping = false;
+    el.classList.remove('animating');
+  }, { passive: true });
+
+  el.addEventListener('touchmove', (e) => {
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+
+    // Determine swipe direction on first significant move
+    if (!isSwiping && Math.abs(dx) > 10) {
+      // Only hijack if horizontal movement dominates
+      if (Math.abs(dx) > Math.abs(dy) * 1.5) {
+        isSwiping = true;
+      } else {
+        return; // Let vertical scroll happen
+      }
+    }
+
+    if (isSwiping) {
+      touchDeltaX = dx;
+      // Dampen if at edges
+      let visual = dx;
+      if ((state.currentDay === 0 && dx > 0) || (state.currentDay >= TOTAL_DAYS - 1 && dx < 0)) {
+        visual = dx * 0.2; // Rubber band effect
+      }
+      el.style.transform = `translateX(${visual}px)`;
+    }
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => {
+    const el = document.getElementById('swipe-area');
+    if (!el) return;
+
+    el.classList.add('animating');
+    el.style.transform = 'translateX(0)';
+
+    if (isSwiping && Math.abs(touchDeltaX) > 60) {
+      if (touchDeltaX < 0 && state.currentDay < TOTAL_DAYS - 1) {
+        // Swipe left → next day
+        state.currentDay++;
+        setTimeout(() => render(), 150);
+      } else if (touchDeltaX > 0 && state.currentDay > 0) {
+        // Swipe right → previous day
+        state.currentDay--;
+        setTimeout(() => render(), 150);
+      }
+    }
+
+    isSwiping = false;
+    touchDeltaX = 0;
+  }, { passive: true });
+}
+
+// ─── Log modal handlers ───
+function openLogModal() {
+  state.logModalOpen = true;
+  state.selectedItems = [];
+  state.logComfort = null;
+  renderModal();
+}
+
+function closeLogModal() {
+  state.logModalOpen = false;
+  renderModal();
+}
+
+function toggleItem(id) {
+  const idx = state.selectedItems.indexOf(id);
+  if (idx >= 0) {
+    state.selectedItems.splice(idx, 1);
+  } else {
+    state.selectedItems.push(id);
+  }
+  renderModal();
+}
+
+function setLogComfort(level) {
+  state.logComfort = level;
+  renderModal();
+}
+
+function renderModal() {
+  let overlay = document.getElementById('log-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'log-modal';
+    overlay.className = 'modal-overlay';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeLogModal(); });
+    document.body.appendChild(overlay);
+  }
+
+  if (!state.logModalOpen) {
+    overlay.classList.remove('open');
+    return;
+  }
+
+  const renderChips = (items) => items.map(item =>
+    `<div class="clothing-chip${state.selectedItems.includes(item.id) ? ' selected' : ''}" onclick="toggleItem('${item.id}')">
+      <span class="chip-icon">${item.icon}</span>${item.label}
+    </div>`
+  ).join('');
+
+  const canSubmit = state.selectedItems.length > 0 && state.logComfort;
+
+  overlay.innerHTML = `
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">What are you wearing?</div>
+      <div class="modal-subtitle">Select everything you've got on right now</div>
+
+      <div class="modal-section-label">Tops</div>
+      <div class="clothing-grid">${renderChips(CLOTHING_ITEMS.tops)}</div>
+
+      <div class="modal-section-label">Bottoms</div>
+      <div class="clothing-grid">${renderChips(CLOTHING_ITEMS.bottoms)}</div>
+
+      <div class="modal-section-label">Accessories</div>
+      <div class="clothing-grid">${renderChips(CLOTHING_ITEMS.accessories)}</div>
+
+      <div class="modal-comfort">
+        <div class="modal-comfort-label">How do you feel right now?</div>
+        <div class="modal-comfort-btns">
+          <button onclick="setLogComfort('too-hot')" class="${state.logComfort === 'too-hot' ? 'selected' : ''}">
+            🥵<span class="mc-label">Too hot</span>
+          </button>
+          <button onclick="setLogComfort('comfortable')" class="${state.logComfort === 'comfortable' ? 'selected' : ''}">
+            😊<span class="mc-label">Just right</span>
+          </button>
+          <button onclick="setLogComfort('too-cold')" class="${state.logComfort === 'too-cold' ? 'selected' : ''}">
+            🥶<span class="mc-label">Too cold</span>
+          </button>
+        </div>
+      </div>
+
+      <button class="modal-submit" onclick="submitLog()" ${canSubmit ? '' : 'disabled'}>
+        Log It
+      </button>
+      <button class="modal-cancel" onclick="closeLogModal()">Cancel</button>
+    </div>
+  `;
+
+  // Trigger open animation
+  requestAnimationFrame(() => overlay.classList.add('open'));
+}
+
+function submitLog() {
+  if (state.selectedItems.length === 0 || !state.logComfort) return;
+
+  const hourly = state.weather.hourly;
+  const now = new Date();
+  const currentHour = now.getHours();
+  const idx = hourly.time.findIndex(t => new Date(t).getHours() === currentHour);
+  const currentFeels = idx >= 0 ? Math.round(hourly.apparent_temperature[idx]) : null;
+  const currentWind = idx >= 0 ? Math.round(hourly.wind_speed_10m[idx]) : null;
+
+  // Calculate warmth score of what they wore
+  const allItems = [...CLOTHING_ITEMS.tops, ...CLOTHING_ITEMS.bottoms, ...CLOTHING_ITEMS.accessories];
+  let warmthScore = 0;
+  state.selectedItems.forEach(id => {
+    const item = allItems.find(i => i.id === id);
+    if (item) warmthScore += item.warmth;
+  });
+
+  // What we would have recommended at this temp (warmth expectation)
+  // Map CLOTHING_LEVELS to expected warmth scores
+  const rec = getRecommendation(currentFeels, currentWind, { tempOffset: 0, windOffset: 0, entries: 0 });
+  const recIdx = CLOTHING_LEVELS.findIndex(c => c.id === rec.id);
+  // Expected warmth: roughly 2 per clothing level index (shorts=0, layers=10)
+  const expectedWarmth = recIdx * 2;
+
+  // Profile adjustment based on comfort + what they wore
+  const learningRate = Math.max(0.3, 2 / (state.profile.entries + 1));
+  let tempDelta = 0;
+  let windDelta = 0;
+
+  if (state.logComfort === 'too-cold') {
+    // They're cold — they need warmer recs next time (lower offset = colder effective temp = warmer clothes)
+    tempDelta = -learningRate * 2;
+    if (currentWind > 10) windDelta = -learningRate * 0.5;
+  } else if (state.logComfort === 'too-hot') {
+    // They're hot — they need cooler recs (higher offset = warmer effective temp = lighter clothes)
+    tempDelta = learningRate * 2;
+    if (currentWind > 10) windDelta = learningRate * 0.3;
+  } else {
+    // Comfortable — learn from their clothing choice vs baseline
+    // If they wore less than expected and are comfortable, they run warm
+    // If they wore more than expected and are comfortable, they run cold
+    const warmthDiff = warmthScore - expectedWarmth;
+    if (warmthDiff < -1) {
+      tempDelta = learningRate * 0.8; // Wore less → runs warm
+    } else if (warmthDiff > 1) {
+      tempDelta = -learningRate * 0.8; // Wore more → runs cold
+    }
+  }
+
+  state.profile.tempOffset = Math.max(-15, Math.min(15, state.profile.tempOffset + tempDelta));
+  state.profile.windOffset = Math.max(-5, Math.min(5, state.profile.windOffset + windDelta));
+  state.profile.entries += 1;
+  saveProfile(state.profile);
+
+  // Log the detailed entry
+  const log = loadFeedbackLog();
+  log.push({
+    date: now.toISOString(),
+    items: [...state.selectedItems],
+    comfort: state.logComfort,
+    warmthScore,
+    feelsLike: currentFeels,
+    wind: currentWind,
+  });
+  saveFeedbackLog(log);
+
+  closeLogModal();
+  showToast('Logged! Your profile is getting smarter.');
+  render();
+}
+
+function resetProfile() {
+  if (confirm('Reset your comfort profile? This clears all learned preferences.')) {
+    state.profile = { tempOffset: 0, windOffset: 0, entries: 0 };
+    saveProfile(state.profile);
+    localStorage.removeItem('sweater-weather-log');
+    showToast('Profile reset to baseline.');
+    render();
+  }
+}
+
+// ─── Toast ───
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ─── Error state ───
+function showError(message) {
+  document.getElementById('app').innerHTML = `
+    <header class="header">
+      <h1>🌦️ Sweater Weather</h1>
+    </header>
+    <div class="card error-card">
+      <div class="error-icon">📍</div>
+      <p>${message}</p>
+      <button class="retry-btn" onclick="requestLocation()">Try Again</button>
+    </div>
+  `;
+}
+
+// ─── Location + init ───
+async function requestLocation() {
+  document.getElementById('app').innerHTML = `
+    <div class="loading"><div class="spinner"></div><p>Finding your location...</p></div>
+  `;
+
+  if (!navigator.geolocation) {
+    showError("Geolocation isn't supported by your browser. Try a modern browser on your phone.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        document.querySelector('.loading p').textContent = 'Fetching weather...';
+        const [weather, location] = await Promise.all([
+          fetchWeather(latitude, longitude),
+          reverseGeocode(latitude, longitude),
+        ]);
+        state.weather = weather;
+        state.location = location;
+        state.currentDay = 0;
+        render();
+      } catch (e) {
+        showError("Couldn't fetch weather data. Check your connection and try again.");
+      }
+    },
+    (err) => {
+      if (err.code === 1) {
+        showError("Location access denied. Tap 'Try Again' and allow location access to get your forecast.");
+      } else {
+        showError("Couldn't determine your location. Please try again.");
+      }
+    },
+    { enableHighAccuracy: false, timeout: 10000 }
+  );
+}
+
+// ─── Keyboard nav (for desktop) ───
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') goToDay(state.currentDay - 1);
+  if (e.key === 'ArrowRight') goToDay(state.currentDay + 1);
+});
+
+// Start
+requestLocation();
+</script>
+</body>
+</html>
