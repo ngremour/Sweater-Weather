@@ -330,12 +330,12 @@
     display: block;
     width: 100%;
     margin-top: 28px;
-    padding: 10px;
+    padding: 13px;
     background: none;
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 10px;
     color: rgba(255,255,255,0.35);
-    font-size: 12px;
+    font-size: 17px;
     cursor: pointer;
     text-align: center;
     letter-spacing: 0.3px;
@@ -1568,7 +1568,7 @@ function render() {
           `;
         })()}
         ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
-        <button class="share-data-btn" onclick="shareUserData()">📤 Share my data with developer</button>
+        <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> Share my data with developer</button>
       </div>
     </div>
   `;
