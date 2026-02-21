@@ -44,6 +44,14 @@
     font-weight: 700;
     letter-spacing: -0.5px;
   }
+  .header .tagline {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    letter-spacing: 0.2px;
+  }
   .header .location {
     font-size: 14px;
     color: var(--text-muted);
@@ -1253,6 +1261,7 @@ function render() {
   app.innerHTML = `
     <header class="header">
       <h1>${getWeatherIcon(dayCode)} Sweater Weather</h1>
+      <div class="tagline">Forecasts that fit you.</div>
       <div class="location" onclick="requestLocation()">${state.location || 'Detecting location...'}</div>
     </header>
 
@@ -1290,11 +1299,11 @@ function render() {
       ` : ''}
 
       ${(() => {
-        // Check if any slot today (or the rep temp) is below 40 — suggest hat & gloves
+        // Check if any slot today (or the rep temp) is below 45 — suggest hat & gloves
         const coldFeels = isToday ? repFeels : Math.round(daily.temperature_2m_min[dayOffset]);
-        const anySlotBelow40 = slots.some(s => s.feelsLike < 40) || coldFeels < 40;
+        const anySlotBelow40 = slots.some(s => s.feelsLike < 45) || coldFeels < 45;
         if (anySlotBelow40) {
-          return '<div class="accessories-alert"><span class="alert-icon">🧤</span><div class="alert-text"><strong>Hat & gloves weather!</strong> Feels like temps drop below 40°F — bundle up your extremities.</div></div>';
+          return '<div class="accessories-alert"><span class="alert-icon">🧤</span><div class="alert-text"><strong>Hat & gloves weather!</strong> Feels like temps drop below 45°F — bundle up your extremities.</div></div>';
         }
         return '';
       })()}
