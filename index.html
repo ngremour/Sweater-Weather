@@ -1095,10 +1095,20 @@ function staleFactor(profile) {
   return Math.max(0, 1 - (daysSince - 45) / 75); // fades to 0 between day 45–120
 }
 
+function normalizeLegacyLog(log) {
+  const legacyMap = { 'too-cold': 2, 'comfortable': 4, 'too-hot': 6 };
+  return log.map(entry => ({
+    ...entry,
+    comfort: typeof entry.comfort === 'string'
+      ? (legacyMap[entry.comfort] || 4)
+      : entry.comfort
+  }));
+}
+
 function loadFeedbackLog() {
   try {
     const saved = localStorage.getItem('sweater-weather-log');
-    if (saved) return JSON.parse(saved);
+    if (saved) return normalizeLegacyLog(JSON.parse(saved));
   } catch(e) {}
   return [];
 }
@@ -1951,7 +1961,11 @@ function submitLog() {
   let rawWindSignal = 0;
 
   // Map 1–7 slider to a continuous signal: 1=freezing(-4.5), 4=just right(0), 7=burning(+4.5)
-  const comfortVal = Number(state.logComfort) || 4;
+  // Also handle legacy string values from before the slider was introduced
+  const legacyMap = { 'too-cold': 2, 'comfortable': 4, 'too-hot': 6 };
+  const comfortVal = typeof state.logComfort === 'string'
+    ? (legacyMap[state.logComfort] || 4)
+    : (Number(state.logComfort) || 4);
   rawTempSignal = (comfortVal - 4) * 1.5; // -4.5, -3, -1.5, 0, +1.5, +3, +4.5
   if (comfortVal <= 3 && currentWind > 10) rawWindSignal = -1;
   if (comfortVal >= 5 && currentWind > 10) rawWindSignal = 0.5;
