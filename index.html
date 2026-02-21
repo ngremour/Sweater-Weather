@@ -924,16 +924,54 @@ const CLOTHING_ITEMS = {
 };
 
 // ─── Profile persistence ───
+function makeRangeProfile() {
+  return { tempOffset: 0, windOffset: 0, entries: 0, alpha: 0.5 };
+}
+
 function loadProfile() {
   try {
     const saved = localStorage.getItem('sweater-weather-profile');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const p = JSON.parse(saved);
+      // Migrate old profiles that don't have the ranges structure yet
+      if (!p.ranges) {
+        p.ranges = { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() };
+        // Seed ranges with any existing global offset so old data isn't lost
+        if (p.tempOffset !== 0 || p.windOffset !== 0) {
+          ['cold','mild','warm'].forEach(r => {
+            p.ranges[r].tempOffset = p.tempOffset * 0.5;
+            p.ranges[r].windOffset = p.windOffset * 0.5;
+          });
+        }
+      }
+      if (!p.lastLogDate) p.lastLogDate = null;
+      return p;
+    }
   } catch(e) {}
-  return { tempOffset: 0, windOffset: 0, entries: 0 };
+  return {
+    tempOffset: 0, windOffset: 0, entries: 0,
+    lastLogDate: null,
+    ranges: { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() },
+  };
 }
 
 function saveProfile(profile) {
   localStorage.setItem('sweater-weather-profile', JSON.stringify(profile));
+}
+
+// Which temperature range does a feels-like fall into?
+function getTempRange(feelsLike) {
+  if (feelsLike < 45) return 'cold';
+  if (feelsLike <= 65) return 'mild';
+  return 'warm';
+}
+
+// How stale is the profile? Returns a 0–1 multiplier (1=fresh, 0=fully stale after 120 days)
+function staleFactor(profile) {
+  if (!profile.lastLogDate) return 1;
+  const daysSince = (Date.now() - new Date(profile.lastLogDate)) / 86400000;
+  if (daysSince <= 45) return 1;
+  return Math.max(0, 1 - (daysSince - 45) / 75); // fades to 0 between day 45–120
 }
 
 function loadFeedbackLog() {
@@ -1027,9 +1065,28 @@ const CLOTHING_LEVELS = [
 ];
 
 function getRecommendation(feelsLike, windSpeed, profile) {
-  const adjustedFeels = feelsLike + (profile?.tempOffset || 0);
+  let tempOff = profile?.tempOffset || 0;
+  let windOff = profile?.windOffset || 0;
+
+  // Blend in range-specific offset if available, weighted by how many range entries exist
+  if (profile?.ranges) {
+    const range = getTempRange(feelsLike);
+    const rp = profile.ranges[range];
+    if (rp && rp.entries > 0) {
+      // Confidence in range data grows up to 10 entries (0 → 1)
+      const rangeConf = Math.min(1, rp.entries / 10);
+      tempOff = rangeConf * rp.tempOffset + (1 - rangeConf) * tempOff;
+      windOff = rangeConf * rp.windOffset + (1 - rangeConf) * windOff;
+    }
+  }
+
+  // Apply seasonal staleness decay — old data fades toward baseline
+  const stale = staleFactor(profile || {});
+  tempOff *= stale;
+  windOff *= stale;
+
   const windAdjust = windSpeed > 20 ? -6 : windSpeed > 15 ? -3 : 0;
-  const effective = adjustedFeels + windAdjust + (profile?.windOffset || 0);
+  const effective = feelsLike + tempOff + windAdjust + windOff;
 
   for (const level of CLOTHING_LEVELS) {
     if (effective >= level.minFeels) return { ...level, effective };
@@ -1431,26 +1488,60 @@ function render() {
 
       <div class="card profile-card">
         <h3>Your Comfort Profile</h3>
-        <div class="profile-stat">
-          <span class="label">Feedback entries</span>
-          <span class="value">${state.profile.entries}</span>
-        </div>
-        <div class="profile-stat">
-          <span class="label">Temperature feel</span>
-          <span class="value">${state.profile.tempOffset === 0 ? 'Baseline' :
-            state.profile.tempOffset > 0 ? `Runs warm (+${state.profile.tempOffset.toFixed(1)}°)` :
-            `Runs cold (${state.profile.tempOffset.toFixed(1)}°)`}</span>
-        </div>
-        <div class="profile-stat">
-          <span class="label">Wind sensitivity</span>
-          <span class="value">${state.profile.windOffset === 0 ? 'Average' :
-            state.profile.windOffset < 0 ? 'More sensitive' : 'Less sensitive'}</span>
-        </div>
-        <div class="profile-stat">
-          <span class="label">Personalization</span>
-          <span class="value">${state.profile.entries < 5 ? 'Getting started' :
-            state.profile.entries < 15 ? 'Learning...' : 'Dialed in ✓'}</span>
-        </div>
+        ${(() => {
+          const p = state.profile;
+          const ranges = p.ranges || {};
+          const stale = staleFactor(p);
+          const isStale = stale < 1;
+
+          function offsetLabel(off) {
+            if (Math.abs(off) < 0.5) return 'Baseline';
+            return off > 0 ? `Runs warm (+${off.toFixed(1)}°)` : `Runs cold (${off.toFixed(1)}°)`;
+          }
+          function confidenceLabel(entries) {
+            if (entries < 3) return 'Still learning';
+            if (entries < 8) return 'Getting there';
+            if (entries < 15) return 'Good data';
+            return 'Dialed in ✓';
+          }
+          function progressBar(entries, max = 15) {
+            const pct = Math.min(100, Math.round(entries / max * 100));
+            return `<div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;margin-top:5px;">
+              <div style="height:4px;width:${pct}%;background:${pct>=100?'#4ade80':'#FFD23F'};border-radius:2px;transition:width 0.4s;"></div>
+            </div>`;
+          }
+
+          const rangeRows = [
+            { key: 'cold', label: '🥶 Cold (below 45°F)', rp: ranges.cold },
+            { key: 'mild', label: '🌤 Mild (45–65°F)',    rp: ranges.mild },
+            { key: 'warm', label: '☀️ Warm (above 65°F)', rp: ranges.warm },
+          ].map(({ label, rp = makeRangeProfile() }) => `
+            <div class="profile-stat" style="flex-direction:column;align-items:flex-start;gap:2px;">
+              <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+                <span class="label">${label}</span>
+                <span class="value" style="font-size:13px;">${confidenceLabel(rp.entries)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;width:100%;font-size:13px;color:var(--text-muted);">
+                <span>${offsetLabel(rp.tempOffset)}</span>
+                <span>${rp.entries} log${rp.entries === 1 ? '' : 's'}</span>
+              </div>
+              ${progressBar(rp.entries)}
+            </div>
+          `).join('');
+
+          return `
+            <div class="profile-stat">
+              <span class="label">Total logs</span>
+              <span class="value">${p.entries}</span>
+            </div>
+            <div class="profile-stat">
+              <span class="label">Wind sensitivity</span>
+              <span class="value">${p.windOffset === 0 ? 'Average' : p.windOffset < 0 ? 'More sensitive' : 'Less sensitive'}</span>
+            </div>
+            ${isStale ? `<div class="profile-stat"><span class="label" style="color:#FFD23F;">⚠️ Profile aging</span><span class="value" style="font-size:13px;">Log to keep it sharp</span></div>` : ''}
+            ${rangeRows}
+          `;
+        })()}
         ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
       </div>
     </div>
@@ -1644,34 +1735,50 @@ function submitLog() {
   // Expected warmth: roughly 2 per clothing level index (shorts=0, layers=10)
   const expectedWarmth = recIdx * 2;
 
-  // Profile adjustment based on comfort + what they wore
-  const learningRate = Math.max(0.3, 2 / (state.profile.entries + 1));
-  let tempDelta = 0;
-  let windDelta = 0;
+  // ── Compute the raw signal from this log ──
+  let rawTempSignal = 0;
+  let rawWindSignal = 0;
 
   if (state.logComfort === 'too-cold') {
-    // They're cold — they need warmer recs next time (lower offset = colder effective temp = warmer clothes)
-    tempDelta = -learningRate * 2;
-    if (currentWind > 10) windDelta = -learningRate * 0.5;
+    rawTempSignal = -3.5;
+    if (currentWind > 10) rawWindSignal = -1;
   } else if (state.logComfort === 'too-hot') {
-    // They're hot — they need cooler recs (higher offset = warmer effective temp = lighter clothes)
-    tempDelta = learningRate * 2;
-    if (currentWind > 10) windDelta = learningRate * 0.3;
+    rawTempSignal = 3.5;
+    if (currentWind > 10) rawWindSignal = 0.5;
   } else {
-    // Comfortable — learn from their clothing choice vs baseline
-    // If they wore less than expected and are comfortable, they run warm
-    // If they wore more than expected and are comfortable, they run cold
+    // Comfortable — refine using what they actually wore vs baseline expectation
     const warmthDiff = warmthScore - expectedWarmth;
-    if (warmthDiff < -1) {
-      tempDelta = learningRate * 0.8; // Wore less → runs warm
-    } else if (warmthDiff > 1) {
-      tempDelta = -learningRate * 0.8; // Wore more → runs cold
-    }
+    if (warmthDiff < -1) rawTempSignal = 1.5;       // wore less → runs warm
+    else if (warmthDiff > 1) rawTempSignal = -1.5;  // wore more → runs cold
   }
 
-  state.profile.tempOffset = Math.max(-15, Math.min(15, state.profile.tempOffset + tempDelta));
-  state.profile.windOffset = Math.max(-5, Math.min(5, state.profile.windOffset + windDelta));
+  // ── Update global offset (slow EMA — anchors across all ranges) ──
+  const globalAlpha = Math.max(0.1, 0.6 / (state.profile.entries + 1));
+  state.profile.tempOffset = Math.max(-15, Math.min(15,
+    state.profile.tempOffset * (1 - globalAlpha) + rawTempSignal * globalAlpha * 5
+  ));
+  state.profile.windOffset = Math.max(-5, Math.min(5,
+    state.profile.windOffset * (1 - globalAlpha) + rawWindSignal * globalAlpha * 5
+  ));
   state.profile.entries += 1;
+  state.profile.lastLogDate = new Date().toISOString();
+
+  // ── Update range-specific offset (faster EMA — precise per condition) ──
+  if (!state.profile.ranges) {
+    state.profile.ranges = { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() };
+  }
+  const range = getTempRange(currentFeels ?? 55);
+  const rp = state.profile.ranges[range];
+  // Alpha starts at 0.5 (responsive) and settles toward 0.15 (stable) as entries accumulate
+  rp.alpha = Math.max(0.15, 0.5 - rp.entries * 0.025);
+  rp.tempOffset = Math.max(-15, Math.min(15,
+    rp.tempOffset * (1 - rp.alpha) + rawTempSignal * rp.alpha * 5
+  ));
+  rp.windOffset = Math.max(-5, Math.min(5,
+    rp.windOffset * (1 - rp.alpha) + rawWindSignal * rp.alpha * 5
+  ));
+  rp.entries += 1;
+
   saveProfile(state.profile);
 
   // Log the detailed entry
@@ -1693,7 +1800,7 @@ function submitLog() {
 
 function resetProfile() {
   if (confirm('Reset your comfort profile? This clears all learned preferences.')) {
-    state.profile = { tempOffset: 0, windOffset: 0, entries: 0 };
+    state.profile = { tempOffset: 0, windOffset: 0, entries: 0, lastLogDate: null, ranges: { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() } };
     saveProfile(state.profile);
     localStorage.removeItem('sweater-weather-log');
     showToast('Profile reset to baseline.');
