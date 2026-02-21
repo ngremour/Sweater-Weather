@@ -1108,6 +1108,12 @@ function render() {
         </div>
       </div>
 
+      ${isToday ? `
+      <button class="log-btn" onclick="openLogModal()">
+        <span class="log-btn-icon">👕</span> Log What I'm Wearing
+      </button>
+      ` : ''}
+
       ${(() => {
         // Check if any slot today (or the rep temp) is below 40 — suggest hat & gloves
         const coldFeels = isToday ? repFeels : Math.round(daily.temperature_2m_min[dayOffset]);
@@ -1133,12 +1139,6 @@ function render() {
         ${narrative ? `<div class="narrative">"${narrative}"</div>` : ''}
       </div>
 
-      ${isToday ? `
-      <button class="log-btn" onclick="openLogModal()">
-        <span class="log-btn-icon">👕</span> Log What I'm Wearing
-      </button>
-      ` : ''}
-
       <div class="card">
         <div class="timeline-title">${isToday ? 'Next 24 Hours' : getDayLabel(dayOffset)}</div>
         <div class="timeline-scroll">
@@ -1163,7 +1163,7 @@ function render() {
           const hi = daily ? Math.round(daily.temperature_2m_max[i]) : '--';
           const lo = daily ? Math.round(daily.temperature_2m_min[i]) : '--';
           const code = daily ? daily.weather_code[i] : 0;
-          const rec = getDayMiddayRec(i, hourly, daily, state.profile);
+          const rec = i === 0 ? currentRec : getDayMiddayRec(i, hourly, daily, state.profile);
           return `
             <div class="forecast-row${i === dayOffset ? ' active-day' : ''}" onclick="goToDay(${i})">
               <div class="fc-day">${getShortDayLabel(i)}</div>
