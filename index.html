@@ -474,6 +474,30 @@
     flex-shrink: 0;
   }
 
+  /* Sunrise / Sunset card */
+  .sunrise-card { padding: 18px 16px 14px; }
+  .sunrise-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .sun-arc-svg { width: 100%; height: auto; display: block; margin-bottom: 4px; }
+  .sun-times {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sun-time-item { text-align: center; flex: 1; }
+  .sun-time-icon { font-size: 22px; margin-bottom: 2px; }
+  .sun-time-val { font-size: 16px; font-weight: 600; }
+  .sun-time-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 1px; }
+  .sun-daylight { text-align: center; flex: 1; }
+  .daylight-val { font-size: 18px; font-weight: 700; }
+  .daylight-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 1px; }
+
   /* Accessories alert */
   .accessories-alert {
     display: flex;
@@ -743,7 +767,7 @@ function saveFeedbackLog(log) {
 
 // ─── Weather API (7 days) ───
 async function fetchWeather(lat, lon) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=${TOTAL_DAYS}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=${TOTAL_DAYS}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Weather fetch failed');
   return res.json();
@@ -1147,6 +1171,73 @@ function render() {
             </div>`;
         }).join('')}
       </div>
+
+      ${(() => {
+        const sunriseISO = daily?.sunrise?.[dayOffset];
+        const sunsetISO  = daily?.sunset?.[dayOffset];
+        if (!sunriseISO || !sunsetISO) return '';
+        const sunriseDate = new Date(sunriseISO);
+        const sunsetDate  = new Date(sunsetISO);
+        const now = new Date();
+        const formatTime = d => {
+          let h = d.getHours(), m = d.getMinutes();
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          h = h % 12 || 12;
+          return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+        };
+        const totalMs = sunsetDate - sunriseDate;
+        const daylightH = Math.floor(totalMs / 3600000);
+        const daylightM = Math.floor((totalMs % 3600000) / 60000);
+        const isPastSunset = isToday && now > sunsetDate;
+        const progress = isToday
+          ? Math.max(0, Math.min(1, (now - sunriseDate) / totalMs))
+          : 0.5;
+        const angle = Math.PI * (1 - progress);
+        const cx = 150, cy = 148, r = 108;
+        const sunX = (cx + r * Math.cos(angle)).toFixed(1);
+        const sunY = (cy - r * Math.sin(angle)).toFixed(1);
+        const arcLeft = cx - r, arcRight = cx + r;
+        return `
+        <div class="card sunrise-card">
+          <div class="sunrise-label">Sunrise & Sunset</div>
+          <svg class="sun-arc-svg" viewBox="0 0 300 165" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(255,185,55,0.18)"/>
+                <stop offset="100%" stop-color="rgba(255,185,55,0)"/>
+              </linearGradient>
+              <filter id="sunGlow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy} Z" fill="url(#skyGrad)"/>
+            <line x1="18" y1="${cy}" x2="282" y2="${cy}" stroke="rgba(255,255,255,0.13)" stroke-width="1"/>
+            <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy}" fill="none" stroke="rgba(255,185,55,0.22)" stroke-width="2" stroke-dasharray="5 4"/>
+            ${!isPastSunset ? `<path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${sunX} ${sunY}" fill="none" stroke="rgba(255,185,55,0.85)" stroke-width="2.5" stroke-linecap="round"/>` : ''}
+            ${!isPastSunset ? `<circle cx="${sunX}" cy="${sunY}" r="20" fill="rgba(255,210,60,0.22)"/>` : ''}
+            <circle cx="${sunX}" cy="${sunY}" r="${isPastSunset ? 5 : 9}" fill="${isPastSunset ? 'rgba(255,185,55,0.3)' : '#FFD23F'}" ${!isPastSunset ? 'filter="url(#sunGlow)"' : ''}/>
+            <circle cx="${arcLeft}" cy="${cy}" r="3" fill="rgba(255,185,55,0.7)"/>
+            <circle cx="${arcRight}" cy="${cy}" r="3" fill="rgba(255,120,55,0.7)"/>
+          </svg>
+          <div class="sun-times">
+            <div class="sun-time-item">
+              <div class="sun-time-icon">🌅</div>
+              <div class="sun-time-val">${formatTime(sunriseDate)}</div>
+              <div class="sun-time-lbl">Sunrise</div>
+            </div>
+            <div class="sun-daylight">
+              <div class="daylight-val">${daylightH}h ${daylightM}m</div>
+              <div class="daylight-lbl">Daylight</div>
+            </div>
+            <div class="sun-time-item">
+              <div class="sun-time-icon">🌇</div>
+              <div class="sun-time-val">${formatTime(sunsetDate)}</div>
+              <div class="sun-time-lbl">Sunset</div>
+            </div>
+          </div>
+        </div>`;
+      })()}
 
       ${isToday ? `
       <button class="log-btn" onclick="openLogModal()">
