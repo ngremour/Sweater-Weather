@@ -835,11 +835,11 @@ function getHourlyIndicesForDay(hourlyTimes, dayOffset) {
 
 // ─── Recommendation engine ───
 const CLOTHING_LEVELS = [
-  { id: 'shorts-tee',       label: 'Shorts & t-shirt',         short: 'Shorts & t-shirt', icon: '☀️', minFeels: 80 },
-  { id: 'tee-pants',        label: 'T-shirt & light pants',    short: 'T-shirt & pants',  icon: '🌤️', minFeels: 68 },
+  { id: 'shorts-tee',       label: 'Shorts & t-shirt',         short: 'Shorts & t-shirt', icon: '🩳', minFeels: 80 },
+  { id: 'tee-pants',        label: 'T-shirt & light pants',    short: 'T-shirt & pants',  icon: '👕', minFeels: 68 },
   { id: 'light-jacket',     label: 'Light jacket',             short: 'Light jacket',    icon: '🧥', minFeels: 55 },
   { id: 'jacket',           label: 'Jacket',                   short: 'Jacket',          icon: '🧥', minFeels: 42 },
-  { id: 'heavy-jacket',     label: 'Heavy jacket',             short: 'Heavy jacket',    icon: '🧣', minFeels: 28 },
+  { id: 'heavy-jacket',     label: 'Heavy jacket',             short: 'Heavy jacket',    icon: '🥼', minFeels: 28 },
   { id: 'heavy-layers',     label: 'Heavy jacket & layers',    short: 'Layers',          icon: '🥶', minFeels: -Infinity },
 ];
 
@@ -1133,6 +1133,12 @@ function render() {
         ${narrative ? `<div class="narrative">"${narrative}"</div>` : ''}
       </div>
 
+      ${isToday ? `
+      <button class="log-btn" onclick="openLogModal()">
+        <span class="log-btn-icon">👕</span> Log What I'm Wearing
+      </button>
+      ` : ''}
+
       <div class="card">
         <div class="timeline-title">${isToday ? 'Next 24 Hours' : getDayLabel(dayOffset)}</div>
         <div class="timeline-scroll">
@@ -1203,22 +1209,22 @@ function render() {
           <svg class="sun-arc-svg" viewBox="0 0 300 165" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="rgba(255,185,55,0.18)"/>
-                <stop offset="100%" stop-color="rgba(255,185,55,0)"/>
+                <stop offset="0%" stop-color="rgba(255,185,55,0.45)"/>
+                <stop offset="100%" stop-color="rgba(255,185,55,0.05)"/>
               </linearGradient>
-              <filter id="sunGlow" x="-80%" y="-80%" width="260%" height="260%">
-                <feGaussianBlur stdDeviation="5" result="blur"/>
+              <filter id="sunGlow" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
                 <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
             </defs>
             <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy} Z" fill="url(#skyGrad)"/>
-            <line x1="18" y1="${cy}" x2="282" y2="${cy}" stroke="rgba(255,255,255,0.13)" stroke-width="1"/>
-            <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy}" fill="none" stroke="rgba(255,185,55,0.22)" stroke-width="2" stroke-dasharray="5 4"/>
-            ${!isPastSunset ? `<path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${sunX} ${sunY}" fill="none" stroke="rgba(255,185,55,0.85)" stroke-width="2.5" stroke-linecap="round"/>` : ''}
-            ${!isPastSunset ? `<circle cx="${sunX}" cy="${sunY}" r="20" fill="rgba(255,210,60,0.22)"/>` : ''}
-            <circle cx="${sunX}" cy="${sunY}" r="${isPastSunset ? 5 : 9}" fill="${isPastSunset ? 'rgba(255,185,55,0.3)' : '#FFD23F'}" ${!isPastSunset ? 'filter="url(#sunGlow)"' : ''}/>
-            <circle cx="${arcLeft}" cy="${cy}" r="3" fill="rgba(255,185,55,0.7)"/>
-            <circle cx="${arcRight}" cy="${cy}" r="3" fill="rgba(255,120,55,0.7)"/>
+            <line x1="14" y1="${cy}" x2="286" y2="${cy}" stroke="rgba(255,255,255,0.35)" stroke-width="1.5"/>
+            <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy}" fill="none" stroke="rgba(255,185,55,0.45)" stroke-width="2.5" stroke-dasharray="5 4"/>
+            ${!isPastSunset ? `<path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${sunX} ${sunY}" fill="none" stroke="#FFB830" stroke-width="3.5" stroke-linecap="round"/>` : ''}
+            ${!isPastSunset ? `<circle cx="${sunX}" cy="${sunY}" r="22" fill="rgba(255,210,60,0.35)"/>` : ''}
+            <circle cx="${sunX}" cy="${sunY}" r="${isPastSunset ? 6 : 11}" fill="${isPastSunset ? 'rgba(255,185,55,0.45)' : '#FFD23F'}" ${!isPastSunset ? 'filter="url(#sunGlow)"' : ''}/>
+            <circle cx="${arcLeft}" cy="${cy}" r="4" fill="rgba(255,185,55,0.9)"/>
+            <circle cx="${arcRight}" cy="${cy}" r="4" fill="rgba(255,120,55,0.9)"/>
           </svg>
           <div class="sun-times">
             <div class="sun-time-item">
@@ -1238,12 +1244,6 @@ function render() {
           </div>
         </div>`;
       })()}
-
-      ${isToday ? `
-      <button class="log-btn" onclick="openLogModal()">
-        <span class="log-btn-icon">👕</span> Log What I'm Wearing
-      </button>
-      ` : ''}
 
       <div class="card profile-card">
         <h3>Your Comfort Profile</h3>
