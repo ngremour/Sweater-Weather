@@ -1122,9 +1122,9 @@ function getHourlyIndicesForDay(hourlyTimes, dayOffset) {
 const CLOTHING_LEVELS = [
   { id: 'shorts-tee',       label: 'Shorts & t-shirt',         short: 'Shorts & t-shirt', icon: '🩳', minFeels: 80 },
   { id: 'tee-pants',        label: 'T-shirt & light pants',    short: 'T-shirt & pants',  icon: '👕', minFeels: 68 },
-  { id: 'light-jacket',     label: 'Light jacket',             short: 'Light jacket',    icon: '🧥', minFeels: 55 },
-  { id: 'jacket',           label: 'Light jacket',             short: 'Light jacket',    icon: '🧥', minFeels: 42 },
-  { id: 'heavy-jacket',     label: 'Heavy jacket',             short: 'Heavy jacket',    icon: '🥼', minFeels: 28 },
+  { id: 'light-jacket',     label: 'Sweatshirt',               short: 'Sweatshirt',      icon: '🧣', minFeels: 55 },
+  { id: 'jacket',           label: 'Light jacket',             short: 'Light jacket',    icon: '🧥', minFeels: 50 },
+  { id: 'heavy-jacket',     label: 'Heavy jacket',             short: 'Heavy jacket',    icon: '🥼', minFeels: 45 },
   { id: 'heavy-layers',     label: 'Heavy jacket & layers',    short: 'Layers',          icon: '🥶', minFeels: -Infinity },
 ];
 
@@ -1489,6 +1489,15 @@ function render() {
           <div class="pill-temp">${nowRec.id !== dayRecResult.id ? 'Bring this along' : 'All day'}</div>
         </div>
       </div>
+
+      ${(() => {
+        const hotFeels = isToday ? repFeels : Math.round(daily.temperature_2m_max[dayOffset]);
+        const anySlotAbove90 = slots.some(s => s.feelsLike > 90) || hotFeels > 90;
+        if (anySlotAbove90) {
+          return '<div class="accessories-alert" style="background:rgba(255,100,50,0.15);border-color:rgba(255,120,50,0.35);"><span class="alert-icon">🌡️</span><div class="alert-text"><strong>Heat alert!</strong> Feels like temps exceed 90°F — stay hydrated and limit time in the sun.</div></div>';
+        }
+        return '';
+      })()}
 
       ${(() => {
         // Check if any slot today (or the rep temp) is below 45 — suggest hat & gloves
