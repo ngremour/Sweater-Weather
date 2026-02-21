@@ -18,57 +18,6 @@
     --accent: #ffd166;
   }
 
-  /* Light mode overrides */
-  body.light-mode {
-    --card-bg: rgba(255,255,255,0.72);
-    --card-border: rgba(0,0,0,0.10);
-    --text: #1a2540;
-    --text-muted: rgba(30,45,80,0.65);
-    --accent: #d4900a;
-  }
-  body.light-mode .nav-arrow {
-    border-color: rgba(0,0,0,0.15);
-    background: rgba(255,255,255,0.5);
-    color: #1a2540;
-  }
-  body.light-mode .nav-arrow:hover { background: rgba(255,255,255,0.8); }
-  body.light-mode .day-dot { background: rgba(0,0,0,0.2); }
-  body.light-mode .day-dot.active { background: #1a2540; }
-  body.light-mode .log-btn {
-    background: rgba(255,255,255,0.6);
-    border-color: rgba(0,0,0,0.2);
-    color: #1a2540;
-  }
-  body.light-mode .log-btn:hover { background: rgba(255,255,255,0.85); }
-  body.light-mode .forecast-row:hover { background: rgba(0,0,0,0.05); }
-  body.light-mode .active-day { background: rgba(0,0,0,0.08); }
-  body.light-mode .hamburger-btn { background: rgba(255,255,255,0.7); border-color: rgba(0,0,0,0.15); }
-  body.light-mode .hamburger-icon span { background: #1a2540; }
-  body.light-mode .theme-toggle { background: rgba(255,255,255,0.6); border-color: rgba(0,0,0,0.15); color: #1a2540; }
-
-  /* Theme toggle button */
-  .theme-toggle {
-    position: fixed;
-    bottom: 24px;
-    right: 86px;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.3);
-    background: rgba(255,255,255,0.15);
-    color: #fff;
-    font-size: 22px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    z-index: 100;
-    transition: all 0.2s;
-  }
-  .theme-toggle:active { transform: scale(0.92); }
-
   /* Day transition animations */
   @keyframes slideInRight {
     from { opacity: 0; transform: translateX(40px); }
@@ -371,7 +320,7 @@
   .submit-feedback:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   /* Profile card */
-  .profile-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .profile-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
   .profile-stat {
     display: flex;
     justify-content: space-between;
@@ -991,7 +940,6 @@
 
 <div class="toast" id="toast"></div>
 
-<button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
 <button class="hamburger-btn" id="hamburger-btn" onclick="openLocationsMenu()">
   <div class="hamburger-icon"><span></span><span></span><span></span></div>
 </button>
@@ -1312,20 +1260,6 @@ function goToDay(day) {
   render(direction);
 }
 
-// ─── Theme ───
-function toggleTheme() {
-  const isLight = document.body.classList.toggle('light-mode');
-  document.getElementById('theme-toggle').textContent = isLight ? '🌙' : '☀️';
-  localStorage.setItem('sweater-theme', isLight ? 'light' : 'dark');
-}
-function loadTheme() {
-  const saved = localStorage.getItem('sweater-theme');
-  if (saved === 'light') {
-    document.body.classList.add('light-mode');
-    const btn = document.getElementById('theme-toggle');
-    if (btn) btn.textContent = '🌙';
-  }
-}
 
 function goToSunriseDay(day) {
   state.sunriseDay = Math.max(0, Math.min(TOTAL_DAYS - 1, day));
@@ -2360,7 +2294,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Start
-loadTheme();
 requestLocation();
 </script>
 <div style="text-align:center;padding:10px 0 18px;font-size:11px;color:rgba(255,255,255,0.3);">Weather data by <a href="https://open-meteo.com/" target="_blank" style="color:rgba(255,255,255,0.4);">Open-Meteo.com</a></div>
