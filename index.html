@@ -902,17 +902,17 @@ const state = {
 // ─── Clothing items for logging ───
 const CLOTHING_ITEMS = {
   tops: [
-    { id: 'tank-top',      label: 'Tank top',       icon: '👕', warmth: 0 },
+    { id: 'tank-top',      label: 'Tank top',       icon: '🎽', warmth: 0 },
     { id: 'tshirt',        label: 'T-shirt',        icon: '👕', warmth: 1 },
     { id: 'long-sleeve',   label: 'Long sleeve',    icon: '👔', warmth: 2 },
-    { id: 'sweater',       label: 'Sweater/Hoodie', icon: '🧶', warmth: 3 },
+    { id: 'sweater',       label: 'Sweater/Hoodie', icon: '🧣', warmth: 3 },
     { id: 'light-jacket',  label: 'Light jacket',   icon: '🧥', warmth: 4 },
-    { id: 'heavy-jacket',  label: 'Heavy jacket',   icon: '🧥', warmth: 5 },
+    { id: 'heavy-jacket',  label: 'Heavy jacket',   icon: '🥼', warmth: 5 },
   ],
   bottoms: [
     { id: 'shorts',        label: 'Shorts',         icon: '🩳', warmth: 0 },
     { id: 'light-pants',   label: 'Light pants',    icon: '👖', warmth: 2 },
-    { id: 'jeans',         label: 'Jeans/Heavy pants', icon: '👖', warmth: 3 },
+    { id: 'jeans',         label: 'Jeans/Heavy pants', icon: '🩱', warmth: 3 },
   ],
   accessories: [
     { id: 'hat',           label: 'Hat / Beanie',   icon: '🧢', warmth: 3 },
@@ -1361,6 +1361,16 @@ function render() {
         const anySlotBelow40 = slots.some(s => s.feelsLike < 45) || coldFeels < 45;
         if (anySlotBelow40) {
           return '<div class="accessories-alert"><span class="alert-icon">🧤</span><div class="alert-text"><strong>Hat & gloves weather!</strong> Feels like temps drop below 45°F — bundle up your extremities.</div></div>';
+        }
+        return '';
+      })()}
+
+      ${(() => {
+        const rainCodes = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99];
+        const hasRain = slots.some(s => rainCodes.includes(s.weatherCode))
+          || displaySlots.some(s => rainCodes.includes(s.weatherCode));
+        if (hasRain) {
+          return '<div class="accessories-alert"><span class="alert-icon">☂️</span><div class="alert-text"><strong>Bring an umbrella!</strong> Rain is expected at some point today — don\'t get caught out.</div></div>';
         }
         return '';
       })()}
