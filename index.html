@@ -335,7 +335,8 @@
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 10px;
     color: rgba(255,255,255,0.35);
-    font-size: 17px;
+    font-size: 20px;
+    font-weight: 700;
     cursor: pointer;
     text-align: center;
     letter-spacing: 0.3px;
@@ -499,6 +500,42 @@
 
   /* Sunrise / Sunset card */
   .sunrise-card { padding: 18px 16px 14px; background: rgba(10,16,36,0.7) !important; }
+  .sunrise-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .sunrise-nav-day {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    flex: 1;
+  }
+  .sunrise-nav-arrow {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+  }
+  .sunrise-nav-arrow:disabled { opacity: 0.2; cursor: default; }
+  .sunrise-dots {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .sunrise-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    cursor: pointer;
+  }
+  .sunrise-dot.active { background: #FFD23F; }
   .sunrise-label {
     font-size: 18px;
     font-weight: 700;
@@ -912,6 +949,7 @@ const state = {
   logModalOpen: false,
   selectedItems: [],
   logComfort: null,
+  sunriseDay: 0,
 };
 
 // ─── Clothing items for logging ───
@@ -1192,7 +1230,13 @@ function updateBackground(feelsLike) {
 // ─── Navigation ───
 function goToDay(day) {
   state.currentDay = Math.max(0, Math.min(TOTAL_DAYS - 1, day));
+  state.sunriseDay = state.currentDay; // keep sunrise in sync with main nav
   render();
+}
+
+function goToSunriseDay(day) {
+  state.sunriseDay = Math.max(0, Math.min(TOTAL_DAYS - 1, day));
+  renderSunriseCard();
 }
 
 // ─── Render ───
@@ -1444,72 +1488,7 @@ function render() {
         }).join('')}
       </div>
 
-      ${(() => {
-        const sunriseISO = daily?.sunrise?.[dayOffset];
-        const sunsetISO  = daily?.sunset?.[dayOffset];
-        if (!sunriseISO || !sunsetISO) return '';
-        const sunriseDate = new Date(sunriseISO);
-        const sunsetDate  = new Date(sunsetISO);
-        const now = new Date();
-        const formatTime = d => {
-          let h = d.getHours(), m = d.getMinutes();
-          const ampm = h >= 12 ? 'PM' : 'AM';
-          h = h % 12 || 12;
-          return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
-        };
-        const totalMs = sunsetDate - sunriseDate;
-        const daylightH = Math.floor(totalMs / 3600000);
-        const daylightM = Math.floor((totalMs % 3600000) / 60000);
-        const isPastSunset = isToday && now > sunsetDate;
-        const progress = isToday
-          ? Math.max(0, Math.min(1, (now - sunriseDate) / totalMs))
-          : 0.5;
-        const angle = Math.PI * (1 - progress);
-        const cx = 150, cy = 148, r = 108;
-        const sunX = (cx + r * Math.cos(angle)).toFixed(1);
-        const sunY = (cy - r * Math.sin(angle)).toFixed(1);
-        const arcLeft = cx - r, arcRight = cx + r;
-        return `
-        <div class="card sunrise-card">
-          <div class="sunrise-label">Sunrise & Sunset</div>
-          <svg class="sun-arc-svg" viewBox="0 0 300 165" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="rgba(255,185,55,0.75)"/>
-                <stop offset="100%" stop-color="rgba(255,185,55,0.08)"/>
-              </linearGradient>
-              <filter id="sunGlow" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur stdDeviation="7" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-            </defs>
-            <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy} Z" fill="url(#skyGrad)"/>
-            <line x1="10" y1="${cy}" x2="290" y2="${cy}" stroke="rgba(255,255,255,0.65)" stroke-width="2"/>
-            <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy}" fill="none" stroke="rgba(255,185,55,0.7)" stroke-width="3" stroke-dasharray="5 4"/>
-            ${!isPastSunset ? `<path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${sunX} ${sunY}" fill="none" stroke="#FFC030" stroke-width="5" stroke-linecap="round"/>` : ''}
-            ${!isPastSunset ? `<circle cx="${sunX}" cy="${sunY}" r="26" fill="rgba(255,215,60,0.45)"/>` : ''}
-            <circle cx="${sunX}" cy="${sunY}" r="${isPastSunset ? 7 : 14}" fill="${isPastSunset ? 'rgba(255,185,55,0.55)' : '#FFD23F'}" ${!isPastSunset ? 'filter="url(#sunGlow)"' : ''}/>
-            <circle cx="${arcLeft}" cy="${cy}" r="5" fill="#FFB830"/>
-            <circle cx="${arcRight}" cy="${cy}" r="5" fill="#FF7833"/>
-          </svg>
-          <div class="sun-times">
-            <div class="sun-time-item">
-              <div class="sun-time-icon">🌅</div>
-              <div class="sun-time-val">${formatTime(sunriseDate)}</div>
-              <div class="sun-time-lbl">Sunrise</div>
-            </div>
-            <div class="sun-daylight">
-              <div class="daylight-val">${daylightH}h ${daylightM}m</div>
-              <div class="daylight-lbl">Daylight</div>
-            </div>
-            <div class="sun-time-item">
-              <div class="sun-time-icon">🌇</div>
-              <div class="sun-time-val">${formatTime(sunsetDate)}</div>
-              <div class="sun-time-lbl">Sunset</div>
-            </div>
-          </div>
-        </div>`;
-      })()}
+      <div id="sunrise-card-container"></div>
 
       <div class="card profile-card">
         <h3>Your Comfort Profile</h3>
@@ -1575,6 +1554,8 @@ function render() {
 
   // Re-attach swipe listeners
   initSwipe();
+  // Render sunrise card independently
+  renderSunriseCard();
 }
 
 // ─── Swipe gesture ───
@@ -1972,6 +1953,112 @@ function deleteLocation(id) {
     state.activeLocationId = null;
   }
   renderLocationsMenu();
+}
+
+// ─── Sunrise card ───
+function buildSunriseHTML(d) {
+  const daily = state.weather?.daily;
+  if (!daily) return '';
+  const sunriseISO = daily.sunrise?.[d];
+  const sunsetISO  = daily.sunset?.[d];
+  if (!sunriseISO || !sunsetISO) return '';
+
+  const sunriseDate = new Date(sunriseISO);
+  const sunsetDate  = new Date(sunsetISO);
+  const now = new Date();
+  const isD0 = d === 0;
+
+  const formatTime = dt => {
+    let h = dt.getHours(), m = dt.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+  };
+
+  const totalMs = sunsetDate - sunriseDate;
+  const daylightH = Math.floor(totalMs / 3600000);
+  const daylightM = Math.floor((totalMs % 3600000) / 60000);
+  const isPastSunset = isD0 && now > sunsetDate;
+  const progress = isD0 ? Math.max(0, Math.min(1, (now - sunriseDate) / totalMs)) : 0.5;
+  const angle = Math.PI * (1 - progress);
+  const cx = 150, cy = 148, r = 108;
+  const sunX = (cx + r * Math.cos(angle)).toFixed(1);
+  const sunY = (cy - r * Math.sin(angle)).toFixed(1);
+  const arcLeft = cx - r, arcRight = cx + r;
+
+  const dayLabel = d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : sunriseDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const dots = Array.from({length: TOTAL_DAYS}, (_, i) =>
+    `<div class="sunrise-dot${i === d ? ' active' : ''}" onclick="goToSunriseDay(${i})"></div>`
+  ).join('');
+
+  return `
+    <div class="card sunrise-card" id="sunrise-card">
+      <div class="sunrise-nav">
+        <button class="sunrise-nav-arrow" onclick="goToSunriseDay(${d - 1})" ${d === 0 ? 'disabled' : ''}>‹</button>
+        <div>
+          <div class="sunrise-label" style="margin-bottom:0;text-align:center;">Sunrise & Sunset</div>
+          <div class="sunrise-nav-day">${dayLabel}</div>
+        </div>
+        <button class="sunrise-nav-arrow" onclick="goToSunriseDay(${d + 1})" ${d >= TOTAL_DAYS - 1 ? 'disabled' : ''}>›</button>
+      </div>
+      <div class="sunrise-dots">${dots}</div>
+      <svg class="sun-arc-svg" viewBox="0 0 300 165" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="skyGrad2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(255,185,55,0.75)"/>
+            <stop offset="100%" stop-color="rgba(255,185,55,0.08)"/>
+          </linearGradient>
+          <filter id="sunGlow2" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="7" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy} Z" fill="url(#skyGrad2)"/>
+        <line x1="10" y1="${cy}" x2="290" y2="${cy}" stroke="rgba(255,255,255,0.65)" stroke-width="2"/>
+        <path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${arcRight} ${cy}" fill="none" stroke="rgba(255,185,55,0.7)" stroke-width="3" stroke-dasharray="5 4"/>
+        ${!isPastSunset ? `<path d="M ${arcLeft} ${cy} A ${r} ${r} 0 0 1 ${sunX} ${sunY}" fill="none" stroke="#FFC030" stroke-width="5" stroke-linecap="round"/>` : ''}
+        ${!isPastSunset ? `<circle cx="${sunX}" cy="${sunY}" r="26" fill="rgba(255,215,60,0.45)"/>` : ''}
+        <circle cx="${sunX}" cy="${sunY}" r="${isPastSunset ? 7 : 14}" fill="${isPastSunset ? 'rgba(255,185,55,0.55)' : '#FFD23F'}" ${!isPastSunset ? 'filter="url(#sunGlow2)"' : ''}/>
+        <circle cx="${arcLeft}" cy="${cy}" r="5" fill="#FFB830"/>
+        <circle cx="${arcRight}" cy="${cy}" r="5" fill="#FF7833"/>
+      </svg>
+      <div class="sun-times">
+        <div class="sun-time-item">
+          <div class="sun-time-icon">🌅</div>
+          <div class="sun-time-val">${formatTime(sunriseDate)}</div>
+          <div class="sun-time-lbl">Sunrise</div>
+        </div>
+        <div class="sun-daylight">
+          <div class="daylight-val">${daylightH}h ${daylightM}m</div>
+          <div class="daylight-lbl">Daylight</div>
+        </div>
+        <div class="sun-time-item">
+          <div class="sun-time-icon">🌇</div>
+          <div class="sun-time-val">${formatTime(sunsetDate)}</div>
+          <div class="sun-time-lbl">Sunset</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderSunriseCard() {
+  const el = document.getElementById('sunrise-card-container');
+  if (!el) return;
+  el.innerHTML = buildSunriseHTML(state.sunriseDay);
+  initSunriseSwipe();
+}
+
+function initSunriseSwipe() {
+  const card = document.getElementById('sunrise-card');
+  if (!card) return;
+  let startX = 0, dx = 0;
+  card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; dx = 0; }, { passive: true });
+  card.addEventListener('touchmove', e => { dx = e.touches[0].clientX - startX; }, { passive: true });
+  card.addEventListener('touchend', () => {
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0 && state.sunriseDay < TOTAL_DAYS - 1) goToSunriseDay(state.sunriseDay + 1);
+    else if (dx > 0 && state.sunriseDay > 0) goToSunriseDay(state.sunriseDay - 1);
+  });
 }
 
 // ─── Share user data ───
