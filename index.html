@@ -1295,22 +1295,10 @@ function buildHourlySlots(dayOffset) {
 function buildHourlyHTML(dayOffset) {
   const slots = buildHourlySlots(dayOffset);
   const isToday = dayOffset === 0;
-  const label = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : getDayLabel(dayOffset);
-  const dots = Array.from({length: TOTAL_DAYS}, (_, i) =>
-    `<div class="sr-dot${i === dayOffset ? ' active' : ''}" onclick="goToHourlyDay(${i})"></div>`
-  ).join('');
   return `
     <div class="card" id="hourly-card">
-      <div class="sr-nav">
-        <button class="sr-arrow" onclick="goToHourlyDay(${dayOffset - 1})" ${dayOffset <= 0 ? 'disabled' : ''}>‹</button>
-        <div>
-          <div class="timeline-title" style="margin:0;text-align:center;">Hour by Hour</div>
-          <div class="sr-day-label">${label}</div>
-        </div>
-        <button class="sr-arrow" onclick="goToHourlyDay(${dayOffset + 1})" ${dayOffset >= TOTAL_DAYS - 1 ? 'disabled' : ''}>›</button>
-      </div>
-      <div class="sr-dots">${dots}</div>
-      <div class="timeline-scroll">
+      <div class="timeline-title">Hour by Hour</div>
+      <div class="timeline-scroll" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()">
         ${slots.map((s, i) => {
           const rec = getRecommendation(s.feelsLike, s.wind, state.profile);
           const showDayBreak = isToday && s.isNextDay && (i === 0 || !slots[i-1].isNextDay);
@@ -1331,21 +1319,6 @@ function renderHourlyCard() {
   const el = document.getElementById('hourly-card-container');
   if (!el) return;
   el.innerHTML = buildHourlyHTML(state.hourlyDay);
-  initHourlySwipe();
-}
-
-function initHourlySwipe() {
-  const card = document.getElementById('hourly-card');
-  if (!card) return;
-  let startX = 0;
-  card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-  card.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - startX;
-    if (Math.abs(dx) > 40) {
-      if (dx < 0 && state.hourlyDay < TOTAL_DAYS - 1) goToHourlyDay(state.hourlyDay + 1);
-      else if (dx > 0 && state.hourlyDay > 0) goToHourlyDay(state.hourlyDay - 1);
-    }
-  });
 }
 
 function goToHourlyDay(day) {
