@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Sweater Weather</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg-start: #4a90d9;
@@ -41,8 +44,9 @@
   }
   .header h1 {
     font-size: 30.8px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
+    font-family: 'Pacifico', cursive;
+    font-weight: 400;
+    letter-spacing: 0px;
   }
   .header .tagline {
     font-size: 15.6px;
@@ -1377,7 +1381,7 @@ function render() {
   app.innerHTML = `
     <header class="header">
       <h1>${getWeatherIcon(dayCode)} Sweater Weather</h1>
-      <div class="tagline">Forecasts that fit you</div>
+      <div class="tagline">Forecasts that fit <strong><em>YOU</em></strong></div>
       <div class="location" onclick="requestLocation()">${state.location || 'Detecting location...'}</div>
     </header>
 
