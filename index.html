@@ -2000,14 +2000,14 @@ async function shareUserData() {
   };
 
   const text = JSON.stringify(payload, null, 2);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const fileName = `sweater-weather-${dateStr}.json`;
+  const file = new File([text], fileName, { type: 'application/json' });
 
-  // Try native share sheet first (works great on iPhone)
-  if (navigator.share) {
+  // Try sharing as a file (iOS 15+ / Android Chrome — opens native share sheet with file)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({
-        title: 'Sweater Weather — My Data',
-        text: text,
-      });
+      await navigator.share({ files: [file], title: 'Sweater Weather Data' });
       showToast('Data shared! Thank you 🙌');
       return;
     } catch(e) {
@@ -2015,16 +2015,14 @@ async function shareUserData() {
     }
   }
 
-  // Fallback: copy to clipboard
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast('Data copied to clipboard — paste it in a message to the developer!');
-  } catch(e) {
-    // Last resort: open in a new window they can copy from
-    const w = window.open('', '_blank');
-    w.document.write('<pre style="font-size:12px;padding:16px;">' + text + '</pre>');
-    w.document.title = 'Sweater Weather Data Export';
-  }
+  // Fallback: trigger a file download
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('File downloaded — send it to the developer!');
 }
 
 // ─── Toast ───
