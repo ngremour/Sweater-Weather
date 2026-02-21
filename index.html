@@ -55,13 +55,13 @@
     padding: 24px 0 8px;
   }
   .header h1 {
-    font-size: 30.8px;
+    font-size: 35.4px;
     font-family: 'Pacifico', cursive;
     font-weight: 400;
     letter-spacing: 0px;
   }
   .header .tagline {
-    font-size: 15.6px;
+    font-size: 17.9px;
     color: var(--text-muted);
     font-style: italic;
     margin-top: 2px;
@@ -1815,7 +1815,45 @@ function renderModal() {
   `;
 
   // Trigger open animation
-  requestAnimationFrame(() => overlay.classList.add('open'));
+  requestAnimationFrame(() => {
+    overlay.classList.add('open');
+    initModalSwipe(overlay);
+  });
+}
+
+function initModalSwipe(overlay) {
+  const sheet = overlay.querySelector('.modal-sheet');
+  if (!sheet) return;
+  let startY = 0;
+  let currentY = 0;
+  let dragging = false;
+
+  sheet.addEventListener('touchstart', (e) => {
+    // Only initiate drag from near the top (handle area) or if scrolled to top
+    if (sheet.scrollTop > 0) return;
+    startY = e.touches[0].clientY;
+    dragging = true;
+    sheet.style.transition = 'none';
+  }, { passive: true });
+
+  sheet.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const dy = Math.max(0, currentY - startY);
+    sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+
+  sheet.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    sheet.style.transition = '';
+    const dy = currentY - startY;
+    if (dy > 80) {
+      closeLogModal();
+    } else {
+      sheet.style.transform = '';
+    }
+  });
 }
 
 function submitLog() {
