@@ -1781,7 +1781,7 @@ function initSwipe() {
 function openLogModal() {
   state.logModalOpen = true;
   state.selectedItems = [];
-  state.logComfort = 3;
+  state.logComfort = 4;
   renderModal();
 }
 
@@ -1802,8 +1802,8 @@ function toggleItem(id) {
 
 function setLogComfort(level) {
   state.logComfort = level;
-  const emojis = ['🥶','😰','😊','😅','🥵'];
-  const labels = ['Too cold','A bit cold','Just right','A bit warm','Too hot'];
+  const emojis = ['🥶','🥶','😰','😊','😅','🥵','🥵'];
+  const labels = ['Freezing','Very cold','A bit cold','Just right','A bit warm','Too hot','Burning up'];
   const emojiEl = document.querySelector('.cur-emoji');
   const labelEl = document.querySelector('.cur-label');
   if (emojiEl) emojiEl.textContent = emojis[level - 1];
@@ -1859,12 +1859,12 @@ function renderModal() {
           <div class="comfort-emoji-row">
             <span class="end-emoji">🥶</span>
             <div class="comfort-current">
-              <span class="cur-emoji">${['🥶','😰','😊','😅','🥵'][state.logComfort - 1]}</span>
-              <span class="cur-label">${['Too cold','A bit cold','Just right','A bit warm','Too hot'][state.logComfort - 1]}</span>
+              <span class="cur-emoji">${['🥶','🥶','😰','😊','😅','🥵','🥵'][state.logComfort - 1]}</span>
+              <span class="cur-label">${['Freezing','Very cold','A bit cold','Just right','A bit warm','Too hot','Burning up'][state.logComfort - 1]}</span>
             </div>
             <span class="end-emoji">🥵</span>
           </div>
-          <input type="range" min="1" max="5" value="${state.logComfort}" class="comfort-slider"
+          <input type="range" min="1" max="7" value="${state.logComfort}" class="comfort-slider"
             oninput="setLogComfort(parseInt(this.value))" />
           <div class="comfort-tick-labels">
             <span>Too cold</span><span>Just right</span><span>Too hot</span>
@@ -1950,13 +1950,13 @@ function submitLog() {
   let rawTempSignal = 0;
   let rawWindSignal = 0;
 
-  // Map 1–5 slider to a continuous signal: 1=very cold(-4), 3=just right(0), 5=very hot(+4)
-  const comfortVal = Number(state.logComfort) || 3;
-  rawTempSignal = (comfortVal - 3) * 2; // -4, -2, 0, +2, +4
-  if (comfortVal <= 2 && currentWind > 10) rawWindSignal = -1;
-  if (comfortVal >= 4 && currentWind > 10) rawWindSignal = 0.5;
-  // If right in the middle (3), also refine using warmth of what they wore
-  if (comfortVal === 3) {
+  // Map 1–7 slider to a continuous signal: 1=freezing(-4.5), 4=just right(0), 7=burning(+4.5)
+  const comfortVal = Number(state.logComfort) || 4;
+  rawTempSignal = (comfortVal - 4) * 1.5; // -4.5, -3, -1.5, 0, +1.5, +3, +4.5
+  if (comfortVal <= 3 && currentWind > 10) rawWindSignal = -1;
+  if (comfortVal >= 5 && currentWind > 10) rawWindSignal = 0.5;
+  // If right in the middle (4), also refine using warmth of what they wore
+  if (comfortVal === 4) {
     const warmthDiff = warmthScore - expectedWarmth;
     if (warmthDiff < -1) rawTempSignal = 1.5;
     else if (warmthDiff > 1) rawTempSignal = -1.5;
