@@ -954,6 +954,7 @@ const state = {
   selectedItems: [],
   logComfort: null,
   sunriseDay: 0,
+  hourlyDay: 0,
 };
 
 // ─── Clothing items for logging ───
@@ -1234,13 +1235,116 @@ function updateBackground(feelsLike) {
 // ─── Navigation ───
 function goToDay(day) {
   state.currentDay = Math.max(0, Math.min(TOTAL_DAYS - 1, day));
-  state.sunriseDay = state.currentDay; // keep sunrise in sync with main nav
+  state.sunriseDay = state.currentDay;
+  state.hourlyDay = state.currentDay;
   render();
 }
 
 function goToSunriseDay(day) {
   state.sunriseDay = Math.max(0, Math.min(TOTAL_DAYS - 1, day));
   renderSunriseCard();
+}
+
+function buildHourlySlots(dayOffset) {
+  const hourly = state.weather.hourly;
+  const now = new Date();
+  const currentHour = now.getHours();
+  const dayIndices = getHourlyIndicesForDay(hourly.time, dayOffset);
+  const isToday = dayOffset === 0;
+  const slots = [];
+  if (isToday) {
+    const searchIdx = dayIndices.find(i => new Date(hourly.time[i]).getHours() === currentHour) !== undefined
+      ? dayIndices.find(i => new Date(hourly.time[i]).getHours() === currentHour)
+      : dayIndices[0];
+    for (let offset = 0; offset < 24; offset++) {
+      const absIdx = (searchIdx !== undefined ? searchIdx : 0) + offset;
+      if (absIdx < hourly.time.length) {
+        const h = new Date(hourly.time[absIdx]).getHours();
+        slots.push({
+          hour: h,
+          feelsLike: Math.round(hourly.apparent_temperature[absIdx]),
+          wind: Math.round(hourly.wind_speed_10m[absIdx]),
+          weatherCode: hourly.weather_code[absIdx],
+          isNow: offset === 0,
+          isNextDay: offset > 0 && h < currentHour,
+        });
+      }
+    }
+  } else {
+    dayIndices.forEach(i => {
+      const h = new Date(hourly.time[i]).getHours();
+      slots.push({
+        hour: h,
+        feelsLike: Math.round(hourly.apparent_temperature[i]),
+        wind: Math.round(hourly.wind_speed_10m[i]),
+        weatherCode: hourly.weather_code[i],
+        isNow: false,
+        isNextDay: false,
+      });
+    });
+  }
+  return slots;
+}
+
+function buildHourlyHTML(dayOffset) {
+  const slots = buildHourlySlots(dayOffset);
+  const isToday = dayOffset === 0;
+  const label = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : getDayLabel(dayOffset);
+  const dots = Array.from({length: TOTAL_DAYS}, (_, i) =>
+    `<div class="sr-dot${i === dayOffset ? ' active' : ''}" onclick="goToHourlyDay(${i})"></div>`
+  ).join('');
+  return `
+    <div class="card" id="hourly-card">
+      <div class="sr-nav">
+        <button class="sr-arrow" onclick="goToHourlyDay(${dayOffset - 1})" ${dayOffset <= 0 ? 'disabled' : ''}>‹</button>
+        <div>
+          <div class="timeline-title" style="margin:0;text-align:center;">Hour by Hour</div>
+          <div class="sr-day-label">${label}</div>
+        </div>
+        <button class="sr-arrow" onclick="goToHourlyDay(${dayOffset + 1})" ${dayOffset >= TOTAL_DAYS - 1 ? 'disabled' : ''}>›</button>
+      </div>
+      <div class="sr-dots">${dots}</div>
+      <div class="timeline-scroll">
+        ${slots.map((s, i) => {
+          const rec = getRecommendation(s.feelsLike, s.wind, state.profile);
+          const showDayBreak = isToday && s.isNextDay && (i === 0 || !slots[i-1].isNextDay);
+          return (showDayBreak ? '<div class="time-slot" style="width:auto;min-width:50px;background:rgba(255,215,102,0.12);border-color:rgba(255,215,102,0.2);padding:14px 10px;"><div class="time" style="color:var(--accent);font-size:10px;">TMRW</div><div class="slot-icon">→</div><div class="slot-temp"></div></div>' : '') + `
+            <div class="time-slot${s.isNow ? ' now' : ''}">
+              <div class="time">${s.isNow ? 'Now' : formatHour(s.hour)}</div>
+              <div class="slot-icon">${getWeatherIcon(s.weatherCode)}</div>
+              <div class="slot-temp">${s.feelsLike}°</div>
+              <div class="slot-rec">${rec.short}</div>
+              <div class="slot-wind">${s.wind} mph</div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function renderHourlyCard() {
+  const el = document.getElementById('hourly-card-container');
+  if (!el) return;
+  el.innerHTML = buildHourlyHTML(state.hourlyDay);
+  initHourlySwipe();
+}
+
+function initHourlySwipe() {
+  const card = document.getElementById('hourly-card');
+  if (!card) return;
+  let startX = 0;
+  card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  card.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0 && state.hourlyDay < TOTAL_DAYS - 1) goToHourlyDay(state.hourlyDay + 1);
+      else if (dx > 0 && state.hourlyDay > 0) goToHourlyDay(state.hourlyDay - 1);
+    }
+  });
+}
+
+function goToHourlyDay(day) {
+  state.hourlyDay = Math.max(0, Math.min(TOTAL_DAYS - 1, day));
+  renderHourlyCard();
 }
 
 // ─── Render ───
@@ -1453,23 +1557,7 @@ function render() {
         ${narrative ? `<div class="narrative">"${narrative}"</div>` : ''}
       </div>
 
-      <div class="card">
-        <div class="timeline-title">${isToday ? 'Next 24 Hours' : getDayLabel(dayOffset)}</div>
-        <div class="timeline-scroll">
-          ${displaySlots.map((s, i) => {
-            const rec = getRecommendation(s.feelsLike, s.wind, state.profile);
-            const showDayBreak = isToday && s.isNextDay && (i === 0 || !displaySlots[i-1].isNextDay);
-            return (showDayBreak ? '<div class="time-slot" style="width:auto;min-width:50px;background:rgba(255,215,102,0.12);border-color:rgba(255,215,102,0.2);padding:14px 10px;"><div class="time" style="color:var(--accent);font-size:10px;">TMRW</div><div class="slot-icon">→</div><div class="slot-temp"></div></div>' : '') + `
-              <div class="time-slot${s.isNow ? ' now' : ''}">
-                <div class="time">${s.isNow ? 'Now' : formatHour(s.hour)}</div>
-                <div class="slot-icon">${getWeatherIcon(s.weatherCode)}</div>
-                <div class="slot-temp">${s.feelsLike}°</div>
-                <div class="slot-rec">${rec.short}</div>
-                <div class="slot-wind">${s.wind} mph</div>
-              </div>`;
-          }).join('')}
-        </div>
-      </div>
+      <div id="hourly-card-container"></div>
 
       <div class="card">
         <div class="forecast-title">7-Day Forecast</div>
@@ -1558,7 +1646,8 @@ function render() {
 
   // Re-attach swipe listeners
   initSwipe();
-  // Render sunrise card independently
+  // Render independently swipeable cards
+  renderHourlyCard();
   renderSunriseCard();
 }
 
