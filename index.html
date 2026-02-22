@@ -1224,9 +1224,17 @@ function getDayMiddayRec(dayIdx, hourly, daily, profile) {
   return getRecommendation(feels, wind, profile);
 }
 
+function getLocalDateString(date) {
+  // Use local date parts to avoid UTC offset shifting the date (e.g. EST after 7pm = next UTC day)
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function getHourlyIndicesForDay(hourlyTimes, dayOffset) {
   const target = getDayDate(dayOffset);
-  const targetDate = target.toISOString().slice(0, 10);
+  const targetDate = getLocalDateString(target);
   const indices = [];
   for (let i = 0; i < hourlyTimes.length; i++) {
     if (hourlyTimes[i].startsWith(targetDate)) {
@@ -1982,7 +1990,8 @@ function submitLog() {
   const hourly = state.weather.hourly;
   const now = new Date();
   const currentHour = now.getHours();
-  const idx = hourly.time.findIndex(t => new Date(t).getHours() === currentHour);
+  const todayStr = getLocalDateString(now);
+  const idx = hourly.time.findIndex(t => t.startsWith(todayStr) && new Date(t).getHours() === currentHour);
   const currentFeels = idx >= 0 ? Math.round(hourly.apparent_temperature[idx]) : null;
   const currentWind = idx >= 0 ? Math.round(hourly.wind_speed_10m[idx]) : null;
 
@@ -2349,7 +2358,7 @@ async function shareUserData() {
   };
 
   const text = JSON.stringify(payload, null, 2);
-  const dateStr = new Date().toISOString().slice(0, 10);
+  const dateStr = getLocalDateString(new Date());
   const fileName = `sweater-weather-${dateStr}.json`;
   const file = new File([text], fileName, { type: 'application/json' });
 
