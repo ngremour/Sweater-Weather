@@ -333,7 +333,7 @@
   .profile-stat .value { font-weight: 600; }
   .btn-row {
     display: flex;
-    gap: 8px;
+    justify-content: space-between;
     margin-top: 12px;
   }
   .reset-btn {
@@ -348,14 +348,14 @@
   .reset-btn:hover { background: rgba(255,100,100,0.2); color: #fff; }
   .beta-btn {
     padding: 8px 16px;
-    border: 1px solid rgba(255,209,102,0.35);
+    border: 1px solid rgba(255,255,255,0.25);
     border-radius: 10px;
-    background: rgba(255,209,102,0.1);
-    color: #ffd166;
+    background: rgba(255,255,255,0.08);
+    color: var(--text-muted);
     font-size: 16.2px;
     cursor: pointer;
   }
-  .beta-btn:hover { background: rgba(255,209,102,0.2); }
+  .beta-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
   .share-data-btn {
     display: block;
     width: 100%;
@@ -1874,7 +1874,7 @@ function render(direction) {
         })()}
         <div class="btn-row">
           ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
-          <button class="beta-btn" onclick="showBetaInfo()">🧪 Beta Info</button>
+          <button class="beta-btn" onclick="showBetaInfo()">Beta Info</button>
         </div>
         <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> Share my data with developer</button>
       </div>
