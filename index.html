@@ -359,6 +359,50 @@
   }
   .share-data-btn:hover { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.3); }
 
+  /* Splash / start screen */
+  .splash {
+    text-align: center;
+    padding: 60px 24px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .splash h1 {
+    font-family: 'Pacifico', cursive;
+    font-size: 38px;
+    font-weight: 400;
+    margin-bottom: 4px;
+  }
+  .splash .splash-tagline {
+    font-size: 16px;
+    font-style: italic;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+  .splash-btn {
+    padding: 16px 36px;
+    border-radius: 50px;
+    border: none;
+    background: rgba(255,255,255,0.92);
+    color: #1a2540;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    max-width: 320px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .splash-btn:active { transform: scale(0.97); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+  .splash-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    max-width: 280px;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+
   /* Loading / Error states */
   .loading {
     text-align: center;
@@ -379,7 +423,8 @@
     padding: 30px;
   }
   .error-card .error-icon { font-size: 36px; margin-bottom: 12px; }
-  .error-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+  .error-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 12px; }
+  .error-hint { font-size: 12px; color: var(--text-muted); background: rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; margin-bottom: 16px !important; line-height: 1.5; text-align: left; }
   .retry-btn {
     padding: 10px 24px;
     border: 1px solid rgba(255,255,255,0.3);
@@ -2337,8 +2382,24 @@ function showToast(msg) {
   setTimeout(() => el.classList.remove('show'), 2500);
 }
 
+// ─── Splash screen ───
+function showSplash() {
+  document.getElementById('app').innerHTML = `
+    <div class="splash">
+      <h1>Sweater Weather</h1>
+      <div class="splash-tagline">Forecasts that fit <strong><em>YOU</em></strong></div>
+      <button class="splash-btn" onclick="requestLocation()">🌤️ Get My Forecast</button>
+      <div class="splash-note">Sweater Weather needs your location to show you the forecast. Your location is never stored on any server.</div>
+    </div>
+  `;
+}
+
 // ─── Error state ───
-function showError(message) {
+function showError(message, isLocationDenied) {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const iosHint = isLocationDenied && isIOS
+    ? `<p class="error-hint">On iPhone, go to <strong>Settings → Privacy & Security → Location Services → Safari Websites</strong> and set it to <em>While Using</em>.</p>`
+    : '';
   document.getElementById('app').innerHTML = `
     <header class="header">
       <h1>🌦️ Sweater Weather</h1>
@@ -2346,6 +2407,7 @@ function showError(message) {
     <div class="card error-card">
       <div class="error-icon">📍</div>
       <p>${message}</p>
+      ${iosHint}
       <button class="retry-btn" onclick="requestLocation()">Try Again</button>
     </div>
   `;
@@ -2358,7 +2420,7 @@ async function requestLocation() {
   `;
 
   if (!navigator.geolocation) {
-    showError("Geolocation isn't supported by your browser. Try a modern browser on your phone.");
+    showError("Geolocation isn't supported by your browser. Try opening the app in Safari or Chrome on your phone.");
     return;
   }
 
@@ -2366,7 +2428,8 @@ async function requestLocation() {
     async (pos) => {
       const { latitude, longitude } = pos.coords;
       try {
-        document.querySelector('.loading p').textContent = 'Fetching weather...';
+        const loadingP = document.querySelector('.loading p');
+        if (loadingP) loadingP.textContent = 'Fetching weather...';
         const [weather, locName] = await Promise.all([
           fetchWeather(latitude, longitude),
           reverseGeocode(latitude, longitude),
@@ -2394,12 +2457,14 @@ async function requestLocation() {
     },
     (err) => {
       if (err.code === 1) {
-        showError("Location access denied. Tap 'Try Again' and allow location access to get your forecast.");
+        showError("Location access denied. Tap 'Try Again' and allow location access when prompted.", true);
+      } else if (err.code === 3) {
+        showError("Location request timed out. Make sure Location Services are enabled and try again.", false);
       } else {
         showError("Couldn't determine your location. Please try again.");
       }
     },
-    { enableHighAccuracy: false, timeout: 10000 }
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
   );
 }
 
@@ -2410,7 +2475,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Start
-requestLocation();
+showSplash();
 </script>
 <div style="text-align:center;padding:10px 0 18px;font-size:11px;color:rgba(255,255,255,0.3);">Weather data by <a href="https://open-meteo.com/" target="_blank" style="color:rgba(255,255,255,0.4);">Open-Meteo.com</a></div>
 </body>
