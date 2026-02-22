@@ -331,8 +331,12 @@
   .profile-stat:last-child { border-bottom: none; }
   .profile-stat .label { color: var(--text-muted); }
   .profile-stat .value { font-weight: 600; }
-  .reset-btn {
+  .btn-row {
+    display: flex;
+    gap: 8px;
     margin-top: 12px;
+  }
+  .reset-btn {
     padding: 8px 16px;
     border: 1px solid rgba(255,255,255,0.25);
     border-radius: 10px;
@@ -342,6 +346,16 @@
     cursor: pointer;
   }
   .reset-btn:hover { background: rgba(255,100,100,0.2); color: #fff; }
+  .beta-btn {
+    padding: 8px 16px;
+    border: 1px solid rgba(255,209,102,0.35);
+    border-radius: 10px;
+    background: rgba(255,209,102,0.1);
+    color: #ffd166;
+    font-size: 16.2px;
+    cursor: pointer;
+  }
+  .beta-btn:hover { background: rgba(255,209,102,0.2); }
   .share-data-btn {
     display: block;
     width: 100%;
@@ -1025,42 +1039,58 @@
   }
   .gps-add-btn:active { opacity: 0.7; }
 
-  /* ── Panel tabs ── */
-  .panel-tabs {
-    display: flex;
-    gap: 6px;
-    margin: 4px 0 18px;
-    background: rgba(255,255,255,0.07);
-    border-radius: 12px;
-    padding: 4px;
+  /* ── Beta Info modal ── */
+  .beta-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 400;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s;
   }
-  .panel-tab {
-    flex: 1;
-    padding: 9px 0;
-    border: none;
-    border-radius: 9px;
-    background: transparent;
-    color: rgba(255,255,255,0.5);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.18s, color 0.18s;
+  .beta-overlay.open { opacity: 1; pointer-events: all; }
+  .beta-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    max-height: 88vh;
+    background: linear-gradient(175deg, #1e2d4a 0%, #111827 100%);
+    border-radius: 24px 24px 0 0;
+    z-index: 401;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+    overflow-y: auto;
+    padding: 0 18px 48px;
   }
-  .panel-tab.active {
-    background: rgba(255,255,255,0.16);
-    color: #fff;
+  .beta-sheet.open { transform: translateY(0); }
+  .beta-handle-row {
+    display: flex; justify-content: center;
+    padding: 14px 0 6px;
   }
-  .panel-tab:active { opacity: 0.75; }
-
-  /* ── About / Beta panel ── */
-  .about-section {
-    margin-bottom: 18px;
+  .beta-handle {
+    width: 38px; height: 4px;
+    background: rgba(255,255,255,0.22);
+    border-radius: 2px;
   }
+  .beta-sheet-title-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin: 6px 0 18px;
+  }
+  .beta-sheet-title {
+    font-size: 18px; font-weight: 700; color: #fff;
+  }
+  .beta-close-btn {
+    background: rgba(255,255,255,0.1);
+    border: none; border-radius: 50%;
+    width: 30px; height: 30px;
+    color: rgba(255,255,255,0.6);
+    font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* ── About / Beta content ── */
+  .about-section { margin-bottom: 18px; }
   .about-section-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
     color: rgba(255,255,255,0.38);
     margin-bottom: 8px;
   }
@@ -1074,8 +1104,7 @@
   }
   .about-card + .about-card { margin-top: 8px; }
   .about-row {
-    display: flex;
-    gap: 12px;
+    display: flex; gap: 12px;
     align-items: flex-start;
     padding: 10px 0;
     border-bottom: 1px solid rgba(255,255,255,0.07);
@@ -1083,46 +1112,28 @@
   .about-row:last-child { border-bottom: none; padding-bottom: 0; }
   .about-row-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
   .about-row-text { flex: 1; }
-  .about-row-label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 2px;
-  }
-  .about-row-desc {
-    font-size: 13px;
-    color: rgba(255,255,255,0.6);
-    line-height: 1.45;
-  }
+  .about-row-label { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+  .about-row-desc { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.45; }
   .about-beta-badge {
     display: inline-block;
     background: rgba(255,209,102,0.2);
     border: 1px solid rgba(255,209,102,0.4);
     color: #ffd166;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    border-radius: 6px;
-    padding: 2px 8px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    border-radius: 6px; padding: 2px 8px;
     margin-bottom: 10px;
   }
   .about-share-btn {
-    width: 100%;
-    padding: 14px;
+    width: 100%; padding: 14px;
     background: rgba(255,209,102,0.15);
     border: 1px solid rgba(255,209,102,0.35);
-    border-radius: 14px;
-    color: #ffd166;
-    font-size: 15px;
-    font-weight: 700;
+    border-radius: 14px; color: #ffd166;
+    font-size: 15px; font-weight: 700;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    display: flex; align-items: center;
+    justify-content: center; gap: 8px;
     margin-top: 6px;
-    text-decoration: none;
   }
   .about-share-btn:active { opacity: 0.7; }
 </style>
@@ -1145,11 +1156,18 @@
 <div class="locations-overlay" id="loc-overlay" onclick="closeLocationsMenu()"></div>
 <div class="locations-panel" id="loc-panel">
   <div class="loc-handle-row"><div class="loc-handle"></div></div>
-  <div class="panel-tabs">
-    <button class="panel-tab active" id="tab-locations" onclick="switchPanelTab('locations')">📍 Locations</button>
-    <button class="panel-tab" id="tab-about" onclick="switchPanelTab('about')">🧪 Beta Info</button>
-  </div>
+  <h2>📍 Locations</h2>
   <div id="loc-menu-content"></div>
+</div>
+
+<div class="beta-overlay" id="beta-overlay" onclick="closeBetaInfo()"></div>
+<div class="beta-sheet" id="beta-sheet">
+  <div class="beta-handle-row"><div class="beta-handle"></div></div>
+  <div class="beta-sheet-title-row">
+    <div class="beta-sheet-title">🧪 Beta Info</div>
+    <button class="beta-close-btn" onclick="closeBetaInfo()">✕</button>
+  </div>
+  <div id="beta-sheet-content"></div>
 </div>
 
 <script>
@@ -1854,7 +1872,10 @@ function render(direction) {
             ${rangeRows}
           `;
         })()}
-        ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
+        <div class="btn-row">
+          ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
+          <button class="beta-btn" onclick="showBetaInfo()">🧪 Beta Info</button>
+        </div>
         <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> Share my data with developer</button>
       </div>
     </div>
@@ -2201,16 +2222,9 @@ function saveLocations(locs) {
   localStorage.setItem('sweater-weather-locations', JSON.stringify(locs));
 }
 
-// ─── Panel tab switching ───
-function switchPanelTab(tab) {
-  document.getElementById('tab-locations').classList.toggle('active', tab === 'locations');
-  document.getElementById('tab-about').classList.toggle('active', tab === 'about');
-  if (tab === 'locations') renderLocationsMenu();
-  else renderAboutPanel();
-}
-
-function renderAboutPanel() {
-  const el = document.getElementById('loc-menu-content');
+// ─── Beta Info modal ───
+function showBetaInfo() {
+  const el = document.getElementById('beta-sheet-content');
   el.innerHTML = `
     <div class="about-section">
       <div class="about-card">
@@ -2237,7 +2251,7 @@ function renderAboutPanel() {
           <div class="about-row-icon">✏️</div>
           <div class="about-row-text">
             <div class="about-row-label">Log What You Wear</div>
-            <div class="about-row-desc">Tap "What Am I Wearing?" each morning. Pick your outfit and rate how warm or cold you felt. This trains the app to your comfort level.</div>
+            <div class="about-row-desc">Tap "What Am I Wearing?" any time. Pick your outfit and rate how warm or cold you felt. This trains the app to your comfort level.</div>
           </div>
         </div>
         <div class="about-row">
@@ -2265,7 +2279,7 @@ function renderAboutPanel() {
           It helps improve the recommendation algorithm for everyone.
         </div>
       </div>
-      <a class="about-share-btn" onclick="exportAndEmail()">📤 Export & Email My Data</a>
+      <button class="about-share-btn" onclick="exportAndEmail()">📤 Export & Email My Data</button>
     </div>
 
     <div class="about-section">
@@ -2277,10 +2291,16 @@ function renderAboutPanel() {
 
     <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:rgba(255,255,255,0.25);">Sweater Weather Beta v0.1</div>
   `;
+  document.getElementById('beta-overlay').classList.add('open');
+  document.getElementById('beta-sheet').classList.add('open');
+}
+
+function closeBetaInfo() {
+  document.getElementById('beta-overlay').classList.remove('open');
+  document.getElementById('beta-sheet').classList.remove('open');
 }
 
 function exportAndEmail() {
-  // Reuse the existing export logic then open mail client
   const log = loadFeedbackLog();
   const profile = loadProfile();
   const payload = {
@@ -2318,9 +2338,6 @@ function exportAndEmail() {
 function openLocationsMenu() {
   document.getElementById('loc-overlay').classList.add('open');
   document.getElementById('loc-panel').classList.add('open');
-  // Always reset to Locations tab on open
-  document.getElementById('tab-locations').classList.add('active');
-  document.getElementById('tab-about').classList.remove('active');
   renderLocationsMenu();
 }
 function closeLocationsMenu() {
