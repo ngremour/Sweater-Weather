@@ -29,6 +29,7 @@
   }
   .slide-in-right { animation: slideInRight 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both; }
   .slide-in-left  { animation: slideInLeft  0.28s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+  @keyframes slideInUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -2610,14 +2611,77 @@ async function shareUserData() {
     }
   }
 
-  // Fallback: trigger a file download
+  // Fallback: download the file then show a clear next-step card
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url;
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
-  showToast('File downloaded — send it to the developer!');
+
+  const logCount = log.length;
+  const subject = encodeURIComponent(`Sweater Weather Beta Data — ${logCount} logs`);
+  const body = encodeURIComponent(`Hi Nick,\n\nAttaching my Sweater Weather data file (${fileName}) with ${logCount} outfit logs.\n\n[Please attach the downloaded file]\n\nFeedback:\n\n`);
+  const mailtoLink = `mailto:ngremour@gmail.com?subject=${subject}&body=${body}`;
+
+  // Remove any existing fallback card
+  const existing = document.getElementById('share-fallback-card');
+  if (existing) existing.remove();
+
+  const card = document.createElement('div');
+  card.id = 'share-fallback-card';
+  card.innerHTML = `
+    <div style="
+      position:fixed; bottom:0; left:0; right:0; z-index:500;
+      background:linear-gradient(175deg,#1e2d4a,#111827);
+      border-radius:24px 24px 0 0;
+      padding:20px 20px 44px;
+      box-shadow:0 -4px 32px rgba(0,0,0,0.4);
+      animation: slideInUp 0.3s cubic-bezier(0.32,0.72,0,1) both;
+    ">
+      <div style="text-align:center;margin-bottom:4px;font-size:28px;">📥</div>
+      <div style="font-size:16px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px;">File saved to Downloads</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.6);text-align:center;margin-bottom:18px;line-height:1.5;">
+        Open your email app, attach <strong style="color:#fff;">${fileName}</strong>,<br>and send it to:
+      </div>
+      <div style="
+        background:rgba(255,255,255,0.08);
+        border:1px solid rgba(255,255,255,0.15);
+        border-radius:12px;
+        padding:12px 16px;
+        text-align:center;
+        font-size:15px;
+        font-weight:700;
+        color:#fff;
+        margin-bottom:14px;
+        letter-spacing:0.2px;
+      ">ngremour@gmail.com</div>
+      <a href="${mailtoLink}" style="
+        display:block;
+        padding:14px;
+        background:rgba(255,209,102,0.15);
+        border:1px solid rgba(255,209,102,0.35);
+        border-radius:14px;
+        color:#ffd166;
+        font-size:15px;
+        font-weight:700;
+        text-align:center;
+        text-decoration:none;
+        margin-bottom:10px;
+      ">📧 Open Email App</a>
+      <button onclick="document.getElementById('share-fallback-card').remove()" style="
+        display:block;
+        width:100%;
+        padding:12px;
+        background:none;
+        border:none;
+        color:rgba(255,255,255,0.4);
+        font-size:14px;
+        cursor:pointer;
+      ">Dismiss</button>
+    </div>
+  `;
+  document.body.appendChild(card);
 }
 
 // ─── Toast ───
