@@ -1024,6 +1024,107 @@
     margin-top: 6px;
   }
   .gps-add-btn:active { opacity: 0.7; }
+
+  /* ── Panel tabs ── */
+  .panel-tabs {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0 18px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 4px;
+  }
+  .panel-tab {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+  }
+  .panel-tab.active {
+    background: rgba(255,255,255,0.16);
+    color: #fff;
+  }
+  .panel-tab:active { opacity: 0.75; }
+
+  /* ── About / Beta panel ── */
+  .about-section {
+    margin-bottom: 18px;
+  }
+  .about-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.38);
+    margin-bottom: 8px;
+  }
+  .about-card {
+    background: rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.55;
+  }
+  .about-card + .about-card { margin-top: 8px; }
+  .about-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .about-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .about-row-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .about-row-text { flex: 1; }
+  .about-row-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 2px;
+  }
+  .about-row-desc {
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.45;
+  }
+  .about-beta-badge {
+    display: inline-block;
+    background: rgba(255,209,102,0.2);
+    border: 1px solid rgba(255,209,102,0.4);
+    color: #ffd166;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-bottom: 10px;
+  }
+  .about-share-btn {
+    width: 100%;
+    padding: 14px;
+    background: rgba(255,209,102,0.15);
+    border: 1px solid rgba(255,209,102,0.35);
+    border-radius: 14px;
+    color: #ffd166;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+    text-decoration: none;
+  }
+  .about-share-btn:active { opacity: 0.7; }
 </style>
 </head>
 <body>
@@ -1044,7 +1145,10 @@
 <div class="locations-overlay" id="loc-overlay" onclick="closeLocationsMenu()"></div>
 <div class="locations-panel" id="loc-panel">
   <div class="loc-handle-row"><div class="loc-handle"></div></div>
-  <h2>📍 Locations</h2>
+  <div class="panel-tabs">
+    <button class="panel-tab active" id="tab-locations" onclick="switchPanelTab('locations')">📍 Locations</button>
+    <button class="panel-tab" id="tab-about" onclick="switchPanelTab('about')">🧪 Beta Info</button>
+  </div>
   <div id="loc-menu-content"></div>
 </div>
 
@@ -2097,10 +2201,126 @@ function saveLocations(locs) {
   localStorage.setItem('sweater-weather-locations', JSON.stringify(locs));
 }
 
+// ─── Panel tab switching ───
+function switchPanelTab(tab) {
+  document.getElementById('tab-locations').classList.toggle('active', tab === 'locations');
+  document.getElementById('tab-about').classList.toggle('active', tab === 'about');
+  if (tab === 'locations') renderLocationsMenu();
+  else renderAboutPanel();
+}
+
+function renderAboutPanel() {
+  const el = document.getElementById('loc-menu-content');
+  el.innerHTML = `
+    <div class="about-section">
+      <div class="about-card">
+        <div class="about-beta-badge">🧪 Beta Preview</div>
+        <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;">Thanks for testing Sweater Weather!</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;">
+          This app learns your personal comfort preferences and uses them to recommend what to wear — not just what the weather is.
+          The more you log, the smarter it gets.
+        </div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-title">How It Works</div>
+      <div class="about-card">
+        <div class="about-row">
+          <div class="about-row-icon">🌤️</div>
+          <div class="about-row-text">
+            <div class="about-row-label">Daily Forecast</div>
+            <div class="about-row-desc">Swipe left and right to browse the 7-day forecast. Each day shows a clothing recommendation based on feels-like temperature.</div>
+          </div>
+        </div>
+        <div class="about-row">
+          <div class="about-row-icon">✏️</div>
+          <div class="about-row-text">
+            <div class="about-row-label">Log What You Wear</div>
+            <div class="about-row-desc">Tap "What Am I Wearing?" each morning. Pick your outfit and rate how warm or cold you felt. This trains the app to your comfort level.</div>
+          </div>
+        </div>
+        <div class="about-row">
+          <div class="about-row-icon">🧠</div>
+          <div class="about-row-text">
+            <div class="about-row-label">Personalization</div>
+            <div class="about-row-desc">After a few logs, recommendations will shift to match you — run hot or cold, it adapts. Aim for 10–20 logs for the best results.</div>
+          </div>
+        </div>
+        <div class="about-row">
+          <div class="about-row-icon">⚠️</div>
+          <div class="about-row-text">
+            <div class="about-row-label">Alerts</div>
+            <div class="about-row-desc">Watch for hat & gloves, umbrella, and heat alerts — shown automatically when conditions warrant them.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-title">Share Your Data</div>
+      <div class="about-card" style="margin-bottom:8px;">
+        <div style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;">
+          Once you've logged <strong style="color:#fff;">10 or more outfits</strong>, please export and email your data.
+          It helps improve the recommendation algorithm for everyone.
+        </div>
+      </div>
+      <a class="about-share-btn" onclick="exportAndEmail()">📤 Export & Email My Data</a>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-title">Questions or Feedback?</div>
+      <div class="about-card" style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;">
+        Email Nick at <strong style="color:#fff;">ngremour@gmail.com</strong> — what felt accurate, what felt off, anything broken or confusing.
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:rgba(255,255,255,0.25);">Sweater Weather Beta v0.1</div>
+  `;
+}
+
+function exportAndEmail() {
+  // Reuse the existing export logic then open mail client
+  const log = loadFeedbackLog();
+  const profile = loadProfile();
+  const payload = {
+    exportDate: new Date().toISOString(),
+    profile,
+    log: log.map(e => ({
+      date: e.date,
+      temp: e.temp,
+      feelsLike: e.feelsLike,
+      wind: e.wind,
+      comfort: e.comfort,
+      warmthScore: e.warmthScore,
+      items: e.items,
+    })),
+  };
+  const text = JSON.stringify(payload, null, 2);
+  const dateStr = getLocalDateString(new Date());
+  const fileName = `sweater-weather-${dateStr}.json`;
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    const logCount = log.length;
+    const subject = encodeURIComponent(`Sweater Weather Beta Data — ${logCount} logs`);
+    const body = encodeURIComponent(`Hi Nick,\n\nAttaching my Sweater Weather data file (${fileName}) with ${logCount} outfit logs.\n\n[Please attach the downloaded file]\n\nFeedback:\n\n`);
+    window.location.href = `mailto:ngremour@gmail.com?subject=${subject}&body=${body}`;
+  }, 800);
+}
+
 // ─── Locations menu ───
 function openLocationsMenu() {
   document.getElementById('loc-overlay').classList.add('open');
   document.getElementById('loc-panel').classList.add('open');
+  // Always reset to Locations tab on open
+  document.getElementById('tab-locations').classList.add('active');
+  document.getElementById('tab-about').classList.remove('active');
   renderLocationsMenu();
 }
 function closeLocationsMenu() {
