@@ -473,6 +473,75 @@
     opacity: 1;
   }
 
+  /* Wind map tile */
+  .wind-map-tile {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .wind-map-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+  }
+  .wind-map-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.55);
+  }
+  .wind-map-speed {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 600;
+  }
+  .wind-map-frame {
+    width: 100%;
+    height: 240px;
+    border: none;
+    display: block;
+    border-radius: 0 0 20px 20px;
+  }
+
+  /* Severe weather alert tile */
+  .severe-alert-tile {
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    border: 1px solid;
+  }
+  .severe-alert-tile.extreme {
+    background: rgba(200, 30, 30, 0.22);
+    border-color: rgba(220, 60, 60, 0.5);
+  }
+  .severe-alert-tile.severe {
+    background: rgba(220, 100, 20, 0.2);
+    border-color: rgba(240, 120, 40, 0.5);
+  }
+  .severe-alert-tile.moderate {
+    background: rgba(200, 160, 0, 0.18);
+    border-color: rgba(220, 180, 0, 0.45);
+  }
+  .severe-alert-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .severe-alert-headline {
+    font-size: 13px;
+    color: rgba(255,255,255,0.8);
+    line-height: 1.45;
+  }
+
   /* Suggestion pills */
   .suggestions {
     display: flex;
@@ -1187,6 +1256,9 @@ const state = {
   logComfort: null,
   sunriseDay: 0,
   hourlyDay: 0,
+  alerts: [],
+  alertLat: null,
+  alertLon: null,
 };
 
 // ─── Clothing items for logging ───
@@ -1474,6 +1546,29 @@ function generateNarrative(slots, profile, dayOffset) {
   return parts.join(' ');
 }
 
+// ─── NWS Severe Weather Alerts ───
+async function fetchAlerts(lat, lon) {
+  try {
+    const res = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lon}&status=actual&message_type=alert,update`, {
+      headers: { 'Accept': 'application/geo+json' }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const features = data.features || [];
+    return features
+      .map(f => f.properties)
+      .filter(p => p.severity !== 'Minor' && p.severity !== 'Unknown')
+      .map(p => ({
+        event:    p.event || 'Weather Alert',
+        headline: p.headline || p.description?.slice(0, 120) || '',
+        severity: p.severity,   // Extreme, Severe, Moderate
+        urgency:  p.urgency,    // Immediate, Expected, Future
+      }));
+  } catch (e) {
+    return []; // silently fail — non-US or no connection
+  }
+}
+
 // ─── Background gradient ───
 function updateBackground(feelsLike) {
   let start, end;
@@ -1732,6 +1827,18 @@ function render(direction) {
     </div>
 
     <div class="swipe-area" id="swipe-area">
+
+      ${state.alerts.length > 0 ? state.alerts.map(a => {
+        const sevClass = a.severity === 'Extreme' ? 'extreme' : a.severity === 'Severe' ? 'severe' : 'moderate';
+        const exclaim  = a.severity === 'Extreme' ? '❗❗❗' : a.severity === 'Severe' ? '❗❗' : '❗';
+        const clean    = a.headline.replace(/\.\.\..*/,'').replace(/\* [A-Z].*?\.{3}/g,'').trim();
+        return `
+          <div class="severe-alert-tile ${sevClass}">
+            <div class="severe-alert-header">${exclaim} ${a.event} ${exclaim}</div>
+            <div class="severe-alert-headline">${clean}</div>
+          </div>`;
+      }).join('') : ''}
+
       <div class="suggestions">
         <div class="suggestion-pill">
           <div class="pill-label">Morning</div>
@@ -1827,6 +1934,27 @@ function render(direction) {
       </div>
 
       <div id="sunrise-card-container"></div>
+
+      ${state.alertLat ? (() => {
+        const lat = state.alertLat.toFixed(4);
+        const lon = state.alertLon.toFixed(4);
+        const windyUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&zoom=8&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1`;
+        const windLabel = repWind > 0 ? `💨 ${repWind} mph now` : '';
+        return `
+        <div class="card wind-map-tile">
+          <div class="wind-map-header">
+            <div class="wind-map-title">🌬️ Wind Map</div>
+            <div class="wind-map-speed">${windLabel}</div>
+          </div>
+          <iframe
+            class="wind-map-frame"
+            src="${windyUrl}"
+            allowfullscreen
+            loading="lazy"
+            title="Wind map">
+          </iframe>
+        </div>`;
+      })() : ''}
 
       <div class="card profile-card">
         <h3>Your Comfort Profile</h3>
@@ -2441,6 +2569,7 @@ function addGpsLocation() {
       }
       state.weather = weather; state.location = loc.name;
       state.activeLocationId = loc.id; state.currentDay = 0;
+      state.alertLat = lat; state.alertLon = lon;
       render();
       document.getElementById('hamburger-btn').style.display = 'flex';
     } catch { showError("Couldn't fetch weather. Check your connection."); }
@@ -2460,6 +2589,12 @@ async function loadAndSwitchTo(loc) {
     const weather = await fetchWeather(loc.lat, loc.lon);
     state.weather = weather; state.location = loc.name;
     state.activeLocationId = loc.id; state.currentDay = 0;
+    state.alertLat = loc.lat; state.alertLon = loc.lon;
+    state.alerts = [];
+    fetchAlerts(loc.lat, loc.lon).then(alerts => {
+      state.alerts = alerts;
+      if (alerts.length > 0) render();
+    });
     render();
     document.getElementById('hamburger-btn').style.display = 'flex';
   } catch { showError("Couldn't fetch weather. Check your connection."); }
@@ -2770,6 +2905,13 @@ async function requestLocation() {
         state.location = locName;
         state.activeLocationId = locId;
         state.currentDay = 0;
+        state.alertLat = latitude;
+        state.alertLon = longitude;
+        // Fetch NWS alerts non-blocking — re-render if any come back
+        fetchAlerts(latitude, longitude).then(alerts => {
+          state.alerts = alerts;
+          if (alerts.length > 0) render();
+        });
         render();
         document.getElementById('hamburger-btn').style.display = 'flex';
       } catch (e) {
