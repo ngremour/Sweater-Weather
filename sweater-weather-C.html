@@ -2009,9 +2009,7 @@ function render(direction) {
         ].map(({ label, p }) => {
           const rain = p.rain ?? 0;
           const rainColor = rain >= 70 ? '#60a5fa' : rain >= 40 ? '#93c5fd' : 'rgba(255,255,255,0.35)';
-          const rainLine = rain >= 20
-            ? `<div style="font-size:11px;color:${rainColor};margin-top:3px;">☔ ${rain}%</div>`
-            : `<div style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:3px;">— %</div>`;
+          const rainLine = `<div style="font-size:11px;color:${rainColor};margin-top:3px;"><span style="font-size:16.5px;vertical-align:middle;">☔</span> ${rain}%</div>`;
           return `<div class="suggestion-pill">
             <div class="pill-label">${label}</div>
             <div class="pill-icon">${p.rec.icon}</div>
@@ -2318,7 +2316,7 @@ function render(direction) {
           ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
           <button class="beta-btn" onclick="showBetaInfo()">Beta Info</button>
         </div>
-        <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> Share my data with developer</button>
+        <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> Share data with developer</button>
       </div>
     </div>
   `;
