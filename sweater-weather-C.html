@@ -2315,6 +2315,7 @@ function render(direction) {
         })()}
         <div class="btn-row">
           ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
+          <button class="reset-btn" onclick="openLogModal()">What Am I Wearing?</button>
           <button class="beta-btn" onclick="showBetaInfo()">Beta Info</button>
         </div>
         <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> Share data with developer</button>
