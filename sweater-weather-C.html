@@ -2124,39 +2124,42 @@ function render(direction) {
             <!-- Streak section -->
             ${(() => {
               const streak = computeStreak();
-              const flames = streak.current >= 30 ? '🔥🔥🔥'
-                           : streak.current >= 14 ? '🔥🔥'
-                           : streak.current >= 3  ? '🔥'
-                           : '';
-              const streakMsg = streak.current === 0  ? 'Log today to start a streak!'
-                              : streak.current === 1  ? 'Started! Log tomorrow to keep it going'
-                              : streak.current < 7   ? `${streak.current}-day streak ${flames}`
-                              : streak.current < 14  ? `${streak.current}-day streak ${flames} One week!`
-                              : streak.current < 30  ? `${streak.current}-day streak ${flames} Two weeks!`
-                              : `${streak.current}-day streak ${flames} On fire!`;
-              const dots = streak.last7.map((logged, i) => {
-                const isToday = i === 6;
-                return `<div style="
-                  width:${isToday ? '22px' : '18px'};
-                  height:${isToday ? '22px' : '18px'};
-                  border-radius:50%;
-                  background:${logged ? '#4ade80' : 'rgba(255,255,255,0.1)'};
-                  border:${isToday ? '2px solid rgba(255,255,255,0.4)' : '1.5px solid rgba(255,255,255,0.15)'};
-                  box-shadow:${logged ? '0 0 6px rgba(74,222,128,0.5)' : 'none'};
-                "></div>`;
+              const s = streak.current;
+              const flames = s >= 30 ? '🔥🔥🔥' : s >= 14 ? '🔥🔥' : s >= 3 ? '🔥' : '';
+              const streakMsg = s === 0  ? 'Log today to start a streak!'
+                              : s === 1  ? 'Started! Log tomorrow to keep it going'
+                              : s < 7   ? `${s}-day streak ${flames}`
+                              : s < 14  ? `${s}-day streak ${flames} One week!`
+                              : s < 30  ? `${s}-day streak ${flames} Two weeks!`
+                              : `${s}-day streak ${flames} On fire!`;
+
+              // Which 7-day bracket are we in?
+              const bracket     = s === 0 ? 0 : Math.floor((s - 1) / 7);
+              const bracketStart = bracket * 7 + 1;   // e.g. 1, 8, 15, 22…
+              const bracketEnd   = bracketStart + 6;  // e.g. 7, 14, 21, 28…
+              const filledCount  = s === 0 ? 0 : s - bracketStart + 1; // 1–7
+
+              const dotCols = Array.from({ length: 7 }, (_, i) => {
+                const filled = i < filledCount;
+                const lbl = i === 0 ? bracketStart : i === 6 ? bracketEnd : '';
+                return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                  <div style="width:18px;height:18px;border-radius:50%;
+                    background:${filled ? '#4ade80' : 'rgba(255,255,255,0.1)'};
+                    border:1.5px solid ${filled ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.15)'};
+                    box-shadow:${filled ? '0 0 6px rgba(74,222,128,0.5)' : 'none'};
+                  "></div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.35);width:18px;text-align:center;">${lbl}</div>
+                </div>`;
               }).join('');
-              const dayLabels = ['','','','','','','Today'].map((lbl, i) => {
-                return `<div style="font-size:9px;color:rgba(255,255,255,${i===6?'0.45':'0.25'});text-align:center;width:${i===6?'22px':'18px'};letter-spacing:0.3px;">${lbl}</div>`;
-              }).join('');
+
               return `
               <div style="background:rgba(255,255,255,0.05);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                   <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);">Daily Streak</div>
-                  ${streak.best > streak.current && streak.best > 1 ? `<div style="font-size:10px;color:rgba(255,255,255,0.3);">Best: ${streak.best}</div>` : ''}
+                  ${streak.best > s && streak.best > 1 ? `<div style="font-size:10px;color:rgba(255,255,255,0.3);">Best: ${streak.best}</div>` : ''}
                 </div>
-                <div style="font-size:${streak.current >= 10 ? '13' : '14'}px;font-weight:700;color:${streak.current > 0 ? '#4ade80' : 'rgba(255,255,255,0.4)'};margin-bottom:10px;">${streakMsg}</div>
-                <div style="display:flex;align-items:flex-end;gap:5px;justify-content:center;">${dots}</div>
-                <div style="display:flex;gap:5px;justify-content:center;margin-top:4px;">${dayLabels}</div>
+                <div style="font-size:14px;font-weight:700;color:${s > 0 ? '#4ade80' : 'rgba(255,255,255,0.4)'};margin-bottom:10px;">${streakMsg}</div>
+                <div style="display:flex;gap:5px;justify-content:center;">${dotCols}</div>
               </div>`;
             })()}
 
