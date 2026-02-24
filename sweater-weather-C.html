@@ -1252,11 +1252,20 @@ const OWM_API_KEY = 'YOUR_OWM_API_KEY_HERE';
 
 // Track Leaflet map instance so we can destroy/recreate cleanly on re-render
 let _windMap = null;
+// Recompute profile from stored log on startup so time-weighting is always current
+const _startupProfile = loadProfile();
+const _startupLog = loadFeedbackLog();
+if (_startupLog.length && _startupProfile.entries > 0) {
+  if (!_startupProfile.ranges) _startupProfile.ranges = { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() };
+  recomputeOffsets(_startupLog, _startupProfile);
+  saveProfile(_startupProfile);
+}
+
 const state = {
   weather: null,
   location: null,
   activeLocationId: null,
-  profile: loadProfile(),
+  profile: _startupProfile,
   feedbackWore: null,
   feedbackComfort: null,
   currentDay: 0,
@@ -1480,6 +1489,76 @@ function showBadgeToast(badge) {
     el.style.transform = 'translateX(-50%) translateY(20px)';
     setTimeout(() => el.remove(), 400);
   }, 3500);
+}
+
+// ─── Time-weighted profile recompute ───
+// Replaces the incremental EMA. Recomputes offsets from the full log history
+// so that recent logs always dominate over stale ones, regardless of total count.
+// Half-life of 60 days: a log from 60 days ago counts ~50% vs a log from today.
+function recomputeOffsets(log, profile) {
+  if (!log.length) return;
+
+  const HALF_LIFE_DAYS = 60;
+  const now = Date.now();
+
+  // Accumulators: { weightSum, tempSum, windSum } for global + each range
+  const global = { w: 0, t: 0, wnd: 0 };
+  const byRange = {
+    cold: { w: 0, t: 0, wnd: 0, count: 0 },
+    mild: { w: 0, t: 0, wnd: 0, count: 0 },
+    warm: { w: 0, t: 0, wnd: 0, count: 0 },
+  };
+
+  log.forEach(entry => {
+    if (entry.feelsLike == null) return;
+
+    const daysSince = (now - new Date(entry.date)) / 86400000;
+    const weight = Math.exp(-daysSince * Math.LN2 / HALF_LIFE_DAYS);
+
+    // Use stored signals if present (new entries), else recompute from comfort
+    let tSig, wSig;
+    if (entry.tempSignal !== undefined) {
+      tSig = entry.tempSignal;
+      wSig = entry.windSignal ?? 0;
+    } else {
+      const legacyMap = { 'too-cold': 2, 'comfortable': 4, 'too-hot': 6 };
+      const cv = typeof entry.comfort === 'string'
+        ? (legacyMap[entry.comfort] || 4) : (Number(entry.comfort) || 4);
+      tSig = (cv - 4) * 1.5;
+      wSig = 0;
+      if (cv <= 3 && (entry.wind ?? 0) > 10) wSig = -1;
+      if (cv >= 5 && (entry.wind ?? 0) > 10) wSig = 0.5;
+    }
+
+    global.w   += weight;
+    global.t   += tSig * weight;
+    global.wnd += wSig * weight;
+
+    const r = getTempRange(entry.feelsLike);
+    byRange[r].w   += weight;
+    byRange[r].t   += tSig * weight;
+    byRange[r].wnd += wSig * weight;
+    byRange[r].count++;
+  });
+
+  // Write back global offsets (scale × 5 matches original EMA magnitude)
+  if (global.w > 0) {
+    profile.tempOffset = Math.max(-15, Math.min(15, (global.t / global.w) * 5));
+    profile.windOffset = Math.max(-5,  Math.min(5,  (global.wnd / global.w) * 5));
+  }
+
+  // Write back range-specific offsets
+  ['cold', 'mild', 'warm'].forEach(r => {
+    if (!profile.ranges[r]) profile.ranges[r] = makeRangeProfile();
+    const acc = byRange[r];
+    if (acc.w > 0) {
+      profile.ranges[r].tempOffset = Math.max(-15, Math.min(15, (acc.t / acc.w) * 5));
+      profile.ranges[r].windOffset = Math.max(-5,  Math.min(5,  (acc.wnd / acc.w) * 5));
+    }
+    profile.ranges[r].entries = acc.count;
+  });
+
+  profile.entries = log.length;
 }
 
 // How stale is the profile? Returns a 0–1 multiplier (1=fresh, 0=fully stale after 120 days)
@@ -2580,55 +2659,22 @@ function submitLog() {
   const expectedWarmth = recIdx * 2;
 
   // ── Compute the raw signal from this log ──
-  let rawTempSignal = 0;
-  let rawWindSignal = 0;
-
-  // Map 1–7 slider to a continuous signal: 1=freezing(-4.5), 4=just right(0), 7=burning(+4.5)
-  // Also handle legacy string values from before the slider was introduced
   const legacyMap = { 'too-cold': 2, 'comfortable': 4, 'too-hot': 6 };
   const comfortVal = typeof state.logComfort === 'string'
     ? (legacyMap[state.logComfort] || 4)
     : (Number(state.logComfort) || 4);
-  rawTempSignal = (comfortVal - 4) * 1.5; // -4.5, -3, -1.5, 0, +1.5, +3, +4.5
+  let rawTempSignal = (comfortVal - 4) * 1.5;
+  let rawWindSignal = 0;
   if (comfortVal <= 3 && currentWind > 10) rawWindSignal = -1;
   if (comfortVal >= 5 && currentWind > 10) rawWindSignal = 0.5;
-  // If right in the middle (4), also refine using warmth of what they wore
+  // If right in the middle (4), refine using warmth of what they wore vs expectation
   if (comfortVal === 4) {
     const warmthDiff = warmthScore - expectedWarmth;
     if (warmthDiff < -1) rawTempSignal = 1.5;
     else if (warmthDiff > 1) rawTempSignal = -1.5;
   }
 
-  // ── Update global offset (slow EMA — anchors across all ranges) ──
-  const globalAlpha = Math.max(0.1, 0.6 / (state.profile.entries + 1));
-  state.profile.tempOffset = Math.max(-15, Math.min(15,
-    state.profile.tempOffset * (1 - globalAlpha) + rawTempSignal * globalAlpha * 5
-  ));
-  state.profile.windOffset = Math.max(-5, Math.min(5,
-    state.profile.windOffset * (1 - globalAlpha) + rawWindSignal * globalAlpha * 5
-  ));
-  state.profile.entries += 1;
-  state.profile.lastLogDate = new Date().toISOString();
-
-  // ── Update range-specific offset (faster EMA — precise per condition) ──
-  if (!state.profile.ranges) {
-    state.profile.ranges = { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() };
-  }
-  const range = getTempRange(currentFeels ?? 55);
-  const rp = state.profile.ranges[range];
-  // Alpha starts at 0.5 (responsive) and settles toward 0.15 (stable) as entries accumulate
-  rp.alpha = Math.max(0.15, 0.5 - rp.entries * 0.025);
-  rp.tempOffset = Math.max(-15, Math.min(15,
-    rp.tempOffset * (1 - rp.alpha) + rawTempSignal * rp.alpha * 5
-  ));
-  rp.windOffset = Math.max(-5, Math.min(5,
-    rp.windOffset * (1 - rp.alpha) + rawWindSignal * rp.alpha * 5
-  ));
-  rp.entries += 1;
-
-  saveProfile(state.profile);
-
-  // Log the detailed entry
+  // ── Save log entry with signals stored for future recompute ──
   const log = loadFeedbackLog();
   const logEntry = {
     date: now.toISOString(),
@@ -2638,9 +2684,19 @@ function submitLog() {
     feelsLike: currentFeels,
     wind: currentWind,
     rainPct: currentRainPct,
+    tempSignal: rawTempSignal,
+    windSignal: rawWindSignal,
   };
   log.push(logEntry);
   saveFeedbackLog(log);
+
+  // ── Recompute all offsets from full log history (time-weighted) ──
+  if (!state.profile.ranges) {
+    state.profile.ranges = { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() };
+  }
+  state.profile.lastLogDate = now.toISOString();
+  recomputeOffsets(log, state.profile);
+  saveProfile(state.profile);
 
   closeLogModal();
   showToast('Logged! Your profile is getting smarter.');
