@@ -1959,56 +1959,141 @@ function render(direction) {
         <h3>Your Comfort Profile</h3>
         ${(() => {
           const p = state.profile;
-          const ranges = p.ranges || {};
           const stale = staleFactor(p);
           const isStale = stale < 1;
 
-          function offsetLabel(off) {
-            if (Math.abs(off) < 0.5) return 'Baseline';
-            return off > 0 ? `Runs warm (+${off.toFixed(1)}°)` : `Runs cold (${off.toFixed(1)}°)`;
-          }
-          function confidenceLabel(entries) {
-            if (entries < 3) return 'Still learning';
-            if (entries < 8) return 'Getting there';
-            if (entries < 15) return 'Good data';
-            return 'Dialed in ✓';
-          }
-          function progressBar(entries, max = 15) {
-            const pct = Math.min(100, Math.round(entries / max * 100));
-            return `<div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;margin-top:5px;">
-              <div style="height:4px;width:${pct}%;background:${pct>=100?'#4ade80':'#FFD23F'};border-radius:2px;transition:width 0.4s;"></div>
-            </div>`;
-          }
+          // Gauge math — semicircle, r=65, cx=100, cy=95
+          const r = 65;
+          const circ = Math.PI * r;           // half-circle arc length ≈ 204
+          const full  = 2 * Math.PI * r;      // full circle ≈ 408
+          const MAX_LOGS = 20;
+          const rawPct = Math.min(1, p.entries / MAX_LOGS);
+          const pct = p.entries > 0 ? Math.max(0.03, rawPct) : 0;
+          const fillLen = circ * pct;
 
-          const rangeRows = [
-            { key: 'cold', label: '🥶 Cold (below 45°F)', rp: ranges.cold },
-            { key: 'mild', label: '🌤 Mild (45–65°F)',    rp: ranges.mild },
-            { key: 'warm', label: '☀️ Warm (above 65°F)', rp: ranges.warm },
-          ].map(({ label, rp = makeRangeProfile() }) => `
-            <div class="profile-stat" style="flex-direction:column;align-items:flex-start;gap:2px;">
-              <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
-                <span class="label">${label}</span>
-                <span class="value" style="font-size:13px;">${confidenceLabel(rp.entries)}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;width:100%;font-size:13px;color:var(--text-muted);">
-                <span>${offsetLabel(rp.tempOffset)}</span>
-                <span>${rp.entries} log${rp.entries === 1 ? '' : 's'}</span>
-              </div>
-              ${progressBar(rp.entries)}
-            </div>
-          `).join('');
+          // Color ramp: orange → amber → blue → green
+          const gaugeColor = rawPct < 0.2 ? '#f97316'
+                           : rawPct < 0.5 ? '#f59e0b'
+                           : rawPct < 0.8 ? '#60a5fa'
+                           : '#4ade80';
+
+          // Labels
+          const confLabel = p.entries === 0  ? 'No data yet'
+                          : p.entries < 3    ? 'Just getting started'
+                          : p.entries < 8    ? 'Learning your style...'
+                          : p.entries < 15   ? 'Getting dialed in'
+                          : p.entries < 20   ? 'Almost there!'
+                          : 'Fully dialed in ✓';
+
+          function offsetLabel(off) {
+            if (Math.abs(off) < 0.5) return 'Average';
+            return off > 0 ? `Runs warm` : `Runs cold`;
+          }
+          const windLabel = p.windOffset === 0  ? 'Average'
+                          : p.windOffset < 0    ? 'Wind sensitive'
+                          : 'Wind resistant';
+
+          // Tick marks at 25%, 50%, 75% along the arc
+          function arcPoint(fraction) {
+            const angle = Math.PI + fraction * Math.PI; // 180° to 360°
+            return {
+              x: 100 + r * Math.cos(angle),
+              y: 95  + r * Math.sin(angle),
+            };
+          }
+          const ticks = [0.25, 0.5, 0.75].map(f => {
+            const inner = arcPoint(f);
+            const rOuter = r + 9;
+            const angle = Math.PI + f * Math.PI;
+            const outer = {
+              x: 100 + rOuter * Math.cos(angle),
+              y: 95  + rOuter * Math.sin(angle),
+            };
+            return `<line x1="${inner.x.toFixed(1)}" y1="${inner.y.toFixed(1)}"
+                          x2="${outer.x.toFixed(1)}" y2="${outer.y.toFixed(1)}"
+                          stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round"/>`;
+          }).join('');
 
           return `
-            <div class="profile-stat">
-              <span class="label">Total logs</span>
-              <span class="value">${p.entries}</span>
+            <svg viewBox="0 0 200 118" width="100%" style="display:block;overflow:visible;">
+              <defs>
+                <filter id="prof-glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+
+              <!-- Background track -->
+              <circle cx="100" cy="95" r="${r}"
+                fill="none"
+                stroke="rgba(255,255,255,0.1)"
+                stroke-width="13"
+                stroke-dasharray="${circ.toFixed(1)} ${full.toFixed(1)}"
+                stroke-linecap="round"
+                transform="rotate(180,100,95)"/>
+
+              <!-- Fill arc -->
+              ${pct > 0 ? `
+              <circle cx="100" cy="95" r="${r}"
+                fill="none"
+                stroke="${gaugeColor}"
+                stroke-width="13"
+                stroke-dasharray="${fillLen.toFixed(1)} ${(full - fillLen).toFixed(1)}"
+                stroke-linecap="round"
+                transform="rotate(180,100,95)"
+                filter="url(#prof-glow)"/>` : ''}
+
+              <!-- Tick marks -->
+              ${ticks}
+
+              <!-- Big log count -->
+              <text x="100" y="82"
+                text-anchor="middle"
+                fill="white"
+                font-size="38"
+                font-weight="800"
+                font-family="-apple-system,BlinkMacSystemFont,sans-serif">${p.entries}</text>
+
+              <!-- "LOGS" label -->
+              <text x="100" y="97"
+                text-anchor="middle"
+                fill="rgba(255,255,255,0.45)"
+                font-size="10"
+                font-weight="700"
+                font-family="-apple-system,BlinkMacSystemFont,sans-serif"
+                letter-spacing="2">LOGS</text>
+
+              <!-- Min / Max labels -->
+              <text x="22" y="106" text-anchor="middle"
+                fill="rgba(255,255,255,0.3)" font-size="10"
+                font-family="-apple-system,sans-serif">0</text>
+              <text x="178" y="106" text-anchor="middle"
+                fill="rgba(255,255,255,0.3)" font-size="10"
+                font-family="-apple-system,sans-serif">${MAX_LOGS}+</text>
+            </svg>
+
+            <!-- Confidence label -->
+            <div style="text-align:center;margin:-4px 0 16px;font-size:15px;font-weight:700;color:${gaugeColor};">${confLabel}</div>
+
+            <!-- Stat pills -->
+            <div style="display:flex;gap:8px;margin-bottom:${isStale ? '10px' : '0'};">
+              <div style="flex:1;background:rgba(255,255,255,0.07);border-radius:12px;padding:11px 10px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.4);margin-bottom:5px;">🌡️ Temp</div>
+                <div style="font-size:14px;font-weight:700;color:#fff;">${p.entries < 3 ? '—' : offsetLabel(p.tempOffset)}</div>
+              </div>
+              <div style="flex:1;background:rgba(255,255,255,0.07);border-radius:12px;padding:11px 10px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.4);margin-bottom:5px;">💨 Wind</div>
+                <div style="font-size:14px;font-weight:700;color:#fff;">${p.entries < 3 ? '—' : windLabel}</div>
+              </div>
             </div>
-            <div class="profile-stat">
-              <span class="label">Wind sensitivity</span>
-              <span class="value">${p.windOffset === 0 ? 'Average' : p.windOffset < 0 ? 'More sensitive' : 'Less sensitive'}</span>
-            </div>
-            ${isStale ? `<div class="profile-stat"><span class="label" style="color:#FFD23F;">⚠️ Profile aging</span><span class="value" style="font-size:13px;">Log to keep it sharp</span></div>` : ''}
-            ${rangeRows}
+
+            ${isStale ? `<div style="display:flex;align-items:center;gap:8px;background:rgba(255,210,60,0.1);border:1px solid rgba(255,210,60,0.3);border-radius:12px;padding:10px 12px;margin-top:10px;">
+              <span style="font-size:18px;">⚠️</span>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#FFD23F;">Profile aging</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;">Log an outfit to keep it sharp</div>
+              </div>
+            </div>` : ''}
           `;
         })()}
         <div class="btn-row">
