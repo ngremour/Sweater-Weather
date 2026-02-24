@@ -1381,6 +1381,106 @@ function computeStreak() {
   return { current, best, last7 };
 }
 
+// ─── Badge system ───
+const BADGES = [
+  { id: 'first-log',      emoji: '🌱', name: 'First Forecast',    desc: 'Logged your first outfit'                  },
+  { id: 'logs-10',        emoji: '🧠', name: 'Data Nerd',         desc: 'Reached 10 total logs'                     },
+  { id: 'logs-25',        emoji: '📊', name: 'Pattern Seeker',    desc: 'Reached 25 total logs'                     },
+  { id: 'logs-50',        emoji: '🏆', name: 'Weather Veteran',   desc: 'Reached 50 total logs'                     },
+  { id: 'logs-100',       emoji: '🌟', name: 'Legend',            desc: '100 logs. You\'re basically a meteorologist'},
+  { id: 'streak-3',       emoji: '🔥', name: 'On a Roll',         desc: '3-day logging streak'                      },
+  { id: 'streak-7',       emoji: '📅', name: 'Week Warrior',      desc: '7-day logging streak'                      },
+  { id: 'streak-30',      emoji: '💪', name: 'Committed',         desc: '30-day logging streak'                     },
+  { id: 'cold-warrior',   emoji: '🥶', name: 'Cold Warrior',      desc: 'Logged when it felt like ≤32°F'            },
+  { id: 'heat-survivor',  emoji: '🥵', name: 'Heat Survivor',     desc: 'Logged when it felt like ≥90°F'            },
+  { id: 'wind-reader',    emoji: '🌬️', name: 'Wind Reader',       desc: 'Logged in 20+ mph winds'                   },
+  { id: 'rain-warrior',   emoji: '☔', name: 'Rain Warrior',      desc: 'Logged on a rainy day (50%+ chance)'       },
+  { id: 'early-bird',     emoji: '🌅', name: 'Early Bird',        desc: 'Logged before 7am'                         },
+  { id: 'night-owl',      emoji: '🌙', name: 'Night Owl',         desc: 'Logged after 9pm'                          },
+  { id: 'dialed-in',      emoji: '🎯', name: 'Dialed In',         desc: 'Profile fully calibrated (20+ logs)'       },
+];
+
+function loadBadges() {
+  try { return JSON.parse(localStorage.getItem('sweater-weather-badges') || '[]'); } catch { return []; }
+}
+function saveBadges(badges) {
+  localStorage.setItem('sweater-weather-badges', JSON.stringify(badges));
+}
+
+function checkAndAwardBadges(logEntry) {
+  const earned = new Set(loadBadges());
+  const newlyEarned = [];
+  const allLogs = loadFeedbackLog();
+  const streak  = computeStreak();
+  const entries = state.profile.entries;
+  const hour    = new Date(logEntry.date).getHours();
+
+  function check(id, condition) {
+    if (!earned.has(id) && condition) { earned.add(id); newlyEarned.push(id); }
+  }
+
+  check('first-log',     entries >= 1);
+  check('logs-10',       entries >= 10);
+  check('logs-25',       entries >= 25);
+  check('logs-50',       entries >= 50);
+  check('logs-100',      entries >= 100);
+  check('streak-3',      streak.current >= 3);
+  check('streak-7',      streak.current >= 7);
+  check('streak-30',     streak.current >= 30);
+  check('cold-warrior',  logEntry.feelsLike !== null && logEntry.feelsLike <= 32);
+  check('heat-survivor', logEntry.feelsLike !== null && logEntry.feelsLike >= 90);
+  check('wind-reader',   logEntry.wind !== null && logEntry.wind >= 20);
+  check('rain-warrior',  logEntry.rainPct !== undefined && logEntry.rainPct >= 50);
+  check('early-bird',    hour < 7);
+  check('night-owl',     hour >= 21);
+  check('dialed-in',     entries >= 20);
+
+  if (newlyEarned.length) {
+    saveBadges([...earned]);
+    // Queue badge toasts with slight delays so they don't stack
+    newlyEarned.forEach((id, i) => {
+      const badge = BADGES.find(b => b.id === id);
+      if (badge) setTimeout(() => showBadgeToast(badge), i * 1800);
+    });
+  }
+}
+
+function showBadgeToast(badge) {
+  // Remove any existing badge toast first
+  const existing = document.getElementById('badge-toast');
+  if (existing) existing.remove();
+
+  const el = document.createElement('div');
+  el.id = 'badge-toast';
+  el.style.cssText = `
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:linear-gradient(135deg,rgba(30,30,60,0.97),rgba(20,20,45,0.97));
+    border:1px solid rgba(74,222,128,0.4); border-radius:16px;
+    padding:14px 18px; z-index:9999; min-width:260px; max-width:320px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(74,222,128,0.15);
+    opacity:0; transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    display:flex; align-items:center; gap:12px;
+  `;
+  el.innerHTML = `
+    <div style="font-size:32px;line-height:1;">${badge.emoji}</div>
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:rgba(74,222,128,0.8);margin-bottom:2px;">Badge Unlocked!</div>
+      <div style="font-size:15px;font-weight:700;color:#fff;">${badge.name}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;">${badge.desc}</div>
+    </div>
+  `;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    el.style.transform = 'translateX(-50%) translateY(0)';
+  });
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(-50%) translateY(20px)';
+    setTimeout(() => el.remove(), 400);
+  }, 3500);
+}
+
 // How stale is the profile? Returns a 0–1 multiplier (1=fresh, 0=fully stale after 120 days)
 function staleFactor(profile) {
   if (!profile.lastLogDate) return 1;
@@ -1413,7 +1513,7 @@ function saveFeedbackLog(log) {
 
 // ─── Weather API (7 days) ───
 async function fetchWeather(lat, lon) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,wind_speed_10m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=${TOTAL_DAYS}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,wind_speed_10m,weather_code,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=${TOTAL_DAYS}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Weather fetch failed');
   return res.json();
@@ -1669,6 +1769,7 @@ function buildHourlySlots(dayOffset) {
       if (absIdx < hourly.time.length) {
         const h = new Date(hourly.time[absIdx]).getHours();
         slots.push({
+          idx: absIdx,
           hour: h,
           feelsLike: Math.round(hourly.apparent_temperature[absIdx]),
           wind: Math.round(hourly.wind_speed_10m[absIdx]),
@@ -1682,6 +1783,7 @@ function buildHourlySlots(dayOffset) {
     dayIndices.forEach(i => {
       const h = new Date(hourly.time[i]).getHours();
       slots.push({
+        idx: i,
         hour: h,
         feelsLike: Math.round(hourly.apparent_temperature[i]),
         wind: Math.round(hourly.wind_speed_10m[i]),
@@ -1850,7 +1952,11 @@ function render(direction) {
   function slotRec(slotArr) {
     if (!slotArr.length) return null;
     const s = slotArr[Math.floor(slotArr.length / 2)];
-    return { rec: getRecommendation(s.feelsLike, s.wind, state.profile), feels: s.feelsLike };
+    const precip = state.weather.hourly.precipitation_probability;
+    const rainPct = precip
+      ? Math.round(slotArr.reduce((sum, sl) => sum + (precip[sl.idx] ?? 0), 0) / slotArr.length)
+      : 0;
+    return { rec: getRecommendation(s.feelsLike, s.wind, state.profile), feels: s.feelsLike, rain: rainPct };
   }
 
   const morningResult  = slotRec(morningSlots);
@@ -1894,24 +2000,24 @@ function render(direction) {
       }).join('') : ''}
 
       <div class="suggestions">
-        <div class="suggestion-pill">
-          <div class="pill-label">Morning</div>
-          <div class="pill-icon">${pillMorning.rec.icon}</div>
-          <div class="pill-rec">${pillMorning.rec.short}</div>
-          <div class="pill-temp">${pillMorning.feels}°F</div>
-        </div>
-        <div class="suggestion-pill">
-          <div class="pill-label">Midday</div>
-          <div class="pill-icon">${pillMidday.rec.icon}</div>
-          <div class="pill-rec">${pillMidday.rec.short}</div>
-          <div class="pill-temp">${pillMidday.feels}°F</div>
-        </div>
-        <div class="suggestion-pill">
-          <div class="pill-label">Evening</div>
-          <div class="pill-icon">${pillEvening.rec.icon}</div>
-          <div class="pill-rec">${pillEvening.rec.short}</div>
-          <div class="pill-temp">${pillEvening.feels}°F</div>
-        </div>
+        ${[
+          { label: 'Morning', p: pillMorning },
+          { label: 'Midday',  p: pillMidday  },
+          { label: 'Evening', p: pillEvening },
+        ].map(({ label, p }) => {
+          const rain = p.rain ?? 0;
+          const rainColor = rain >= 70 ? '#60a5fa' : rain >= 40 ? '#93c5fd' : 'rgba(255,255,255,0.35)';
+          const rainLine = rain >= 20
+            ? `<div style="font-size:11px;color:${rainColor};margin-top:3px;">☔ ${rain}%</div>`
+            : `<div style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:3px;">— %</div>`;
+          return `<div class="suggestion-pill">
+            <div class="pill-label">${label}</div>
+            <div class="pill-icon">${p.rec.icon}</div>
+            <div class="pill-rec">${p.rec.short}</div>
+            <div class="pill-temp">${p.feels}°F</div>
+            ${rainLine}
+          </div>`;
+        }).join('')}
       </div>
 
       ${(() => {
@@ -2160,6 +2266,35 @@ function render(direction) {
                 </div>
                 <div style="font-size:14px;font-weight:700;color:${s > 0 ? '#4ade80' : 'rgba(255,255,255,0.4)'};margin-bottom:10px;">${streakMsg}</div>
                 <div style="display:flex;gap:5px;justify-content:center;">${dotCols}</div>
+              </div>`;
+            })()}
+
+            <!-- Badge shelf -->
+            ${(() => {
+              const earned = new Set(loadBadges());
+              if (earned.size === 0) return `
+                <div style="text-align:center;padding:10px 0 14px;font-size:12px;color:rgba(255,255,255,0.25);">
+                  🏅 Log an outfit to start earning badges
+                </div>`;
+              const earnedBadges = BADGES.filter(b => earned.has(b.id));
+              const locked = BADGES.length - earnedBadges.length;
+              const chips = earnedBadges.map(b =>
+                `<div title="${b.name}: ${b.desc}" style="
+                  display:flex;flex-direction:column;align-items:center;gap:3px;
+                  background:rgba(255,255,255,0.07);border-radius:10px;
+                  padding:7px 6px;min-width:44px;cursor:default;
+                ">
+                  <div style="font-size:20px;line-height:1;">${b.emoji}</div>
+                  <div style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.45);text-align:center;line-height:1.2;max-width:40px;">${b.name}</div>
+                </div>`
+              ).join('');
+              return `
+              <div style="margin-bottom:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);">Badges</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.25);">${earnedBadges.length}/${BADGES.length} earned · ${locked} locked</div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">${chips}</div>
               </div>`;
             })()}
 
@@ -2432,7 +2567,9 @@ function submitLog() {
   const todayStr = getLocalDateString(now);
   const idx = hourly.time.findIndex(t => t.startsWith(todayStr) && new Date(t).getHours() === currentHour);
   const currentFeels = idx >= 0 ? Math.round(hourly.apparent_temperature[idx]) : null;
-  const currentWind = idx >= 0 ? Math.round(hourly.wind_speed_10m[idx]) : null;
+  const currentWind  = idx >= 0 ? Math.round(hourly.wind_speed_10m[idx]) : null;
+  const currentRainPct = idx >= 0 && hourly.precipitation_probability
+    ? (hourly.precipitation_probability[idx] ?? 0) : 0;
 
   // Calculate warmth score of what they wore
   const allItems = [...CLOTHING_ITEMS.tops, ...CLOTHING_ITEMS.bottoms, ...CLOTHING_ITEMS.accessories];
@@ -2500,18 +2637,21 @@ function submitLog() {
 
   // Log the detailed entry
   const log = loadFeedbackLog();
-  log.push({
+  const logEntry = {
     date: now.toISOString(),
     items: [...state.selectedItems],
     comfort: state.logComfort,
     warmthScore,
     feelsLike: currentFeels,
     wind: currentWind,
-  });
+    rainPct: currentRainPct,
+  };
+  log.push(logEntry);
   saveFeedbackLog(log);
 
   closeLogModal();
   showToast('Logged! Your profile is getting smarter.');
+  checkAndAwardBadges(logEntry);
   render();
 }
 
@@ -2520,6 +2660,7 @@ function resetProfile() {
     state.profile = { tempOffset: 0, windOffset: 0, entries: 0, lastLogDate: null, ranges: { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() } };
     saveProfile(state.profile);
     localStorage.removeItem('sweater-weather-log');
+    localStorage.removeItem('sweater-weather-badges');
     showToast('Profile reset to baseline.');
     render();
   }
