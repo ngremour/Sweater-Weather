@@ -1902,6 +1902,7 @@ function render(direction) {
     const idx = dayIndices.find(i => new Date(hourly.time[i]).getHours() === h);
     if (idx === undefined) return null;
     return {
+      idx,
       hour: h,
       temp: Math.round(hourly.temperature_2m[idx]),
       feelsLike: Math.round(hourly.apparent_temperature[idx]),
@@ -2041,9 +2042,13 @@ function render(direction) {
       })()}
 
       ${(() => {
+        const precip = hourly.precipitation_probability;
         const rainCodes = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99];
-        const hasRain = slots.some(s => rainCodes.includes(s.weatherCode))
-          || displaySlots.some(s => rainCodes.includes(s.weatherCode));
+        // Use precip probability as primary signal (≥30% in any today slot)
+        // Fall back to weather code if precip data unavailable
+        const hasRain = precip
+          ? slots.some(s => (precip[s.idx] ?? 0) >= 30)
+          : slots.some(s => rainCodes.includes(s.weatherCode));
         if (hasRain) {
           return '<div class="accessories-alert"><span class="alert-icon">☂️</span><div class="alert-text"><strong>Bring an umbrella!</strong> Rain is expected at some point today — don\'t get caught out.</div></div>';
         }
