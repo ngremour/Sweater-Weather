@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root {
     --bg-start: #4a90d9;
@@ -1243,6 +1245,12 @@
 <script>
 // ─── State ───
 const TOTAL_DAYS = 7;
+
+// ── OpenWeatherMap API key (free at openweathermap.org/api) ──
+const OWM_API_KEY = 'YOUR_OWM_API_KEY_HERE';
+
+// Track Leaflet map instance so we can destroy/recreate cleanly on re-render
+let _windMap = null;
 const state = {
   weather: null,
   location: null,
@@ -1936,9 +1944,6 @@ function render(direction) {
       <div id="sunrise-card-container"></div>
 
       ${state.alertLat ? (() => {
-        const lat = state.alertLat.toFixed(4);
-        const lon = state.alertLon.toFixed(4);
-        const windyUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&detailLat=${lat}&detailLon=${lon}&zoom=8&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1`;
         const windLabel = repWind > 0 ? `💨 ${repWind} mph now` : '';
         return `
         <div class="card wind-map-tile">
@@ -1946,13 +1951,7 @@ function render(direction) {
             <div class="wind-map-title">🌬️ Wind Map</div>
             <div class="wind-map-speed">${windLabel}</div>
           </div>
-          <iframe
-            class="wind-map-frame"
-            src="${windyUrl}"
-            allowfullscreen
-            loading="lazy"
-            title="Wind map">
-          </iframe>
+          <div id="wind-map-leaflet" class="wind-map-frame"></div>
         </div>`;
       })() : ''}
 
@@ -2026,6 +2025,8 @@ function render(direction) {
   // Render independently swipeable cards
   renderHourlyCard();
   renderSunriseCard();
+  // Init wind map after DOM is ready
+  setTimeout(initWindMap, 50);
 
   // Animate content on day change
   if (direction) {
@@ -2694,6 +2695,48 @@ function buildSunriseHTML(d) {
         </div>
       </div>
     </div>`;
+}
+
+function initWindMap() {
+  const el = document.getElementById('wind-map-leaflet');
+  if (!el || !state.alertLat || !state.alertLon) return;
+
+  // Destroy previous instance if re-rendering
+  if (_windMap) { _windMap.remove(); _windMap = null; }
+
+  const lat = state.alertLat;
+  const lon = state.alertLon;
+
+  _windMap = L.map('wind-map-leaflet', {
+    center: [lat, lon],
+    zoom: 8,
+    zoomControl: false,
+    attributionControl: false,
+    dragging: true,
+    scrollWheelZoom: false,
+  });
+
+  // Dark base layer (CartoDB Dark Matter — free, no key)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 14,
+  }).addTo(_windMap);
+
+  // OWM wind speed layer
+  if (OWM_API_KEY && OWM_API_KEY !== 'YOUR_OWM_API_KEY_HERE') {
+    L.tileLayer(`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${OWM_API_KEY}`, {
+      maxZoom: 14,
+      opacity: 0.85,
+    }).addTo(_windMap);
+  }
+
+  // Location marker
+  L.circleMarker([lat, lon], {
+    radius: 7,
+    color: '#fff',
+    fillColor: '#4a90d9',
+    fillOpacity: 1,
+    weight: 2,
+  }).addTo(_windMap);
 }
 
 function renderSunriseCard() {
