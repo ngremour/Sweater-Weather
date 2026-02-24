@@ -204,6 +204,38 @@
     font-style: italic;
   }
 
+  /* Narrative tile */
+  .narrative-tile {
+    padding: 20px 20px 18px;
+    margin-bottom: 12px;
+  }
+  .narrative-tile-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 10px;
+  }
+  .narrative-tile-text {
+    font-size: 17px;
+    line-height: 1.6;
+    color: #fff;
+    font-weight: 500;
+  }
+  .narrative-tile-temps {
+    margin-top: 12px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.55);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .narrative-tile-temps .feels {
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+  }
+
   /* Timeline */
   .timeline-title {
     font-size: 18px;
@@ -473,44 +505,6 @@
     opacity: 1;
   }
 
-  /* Suggestion pills */
-  .suggestions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .suggestion-pill {
-    flex: 1;
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--card-border);
-    border-radius: 16px;
-    padding: 14px 14px;
-    text-align: center;
-  }
-  .suggestion-pill .pill-label {
-    font-size: 17.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-  }
-  .suggestion-pill .pill-icon {
-    font-size: 49px;
-    margin-bottom: 4px;
-  }
-  .suggestion-pill .pill-rec {
-    font-size: 24.5px;
-    font-weight: 600;
-    line-height: 1.3;
-  }
-  .suggestion-pill .pill-temp {
-    font-size: 19.25px;
-    color: var(--text-muted);
-    margin-top: 3px;
-  }
 
   /* 7-day forecast */
   .forecast-title {
@@ -1425,53 +1419,86 @@ function generateNarrative(slots, profile, dayOffset) {
   if (!slots || slots.length === 0) return '';
 
   const morning = slots.filter(s => s.hour >= 6 && s.hour <= 10);
-  const midday = slots.filter(s => s.hour >= 11 && s.hour <= 14);
+  const midday  = slots.filter(s => s.hour >= 11 && s.hour <= 14);
   const evening = slots.filter(s => s.hour >= 17 && s.hour <= 21);
 
-  const morningRec = morning.length ? getRecommendation(morning[0].feelsLike, morning[0].wind, profile) : null;
-  const middayRec = midday.length ? getRecommendation(midday[Math.floor(midday.length/2)].feelsLike, midday[Math.floor(midday.length/2)].wind, profile) : null;
-  const eveningRec = evening.length ? getRecommendation(evening[0].feelsLike, evening[0].wind, profile) : null;
+  const morningSlot = morning[0] || null;
+  const middaySlot  = midday[Math.floor(midday.length / 2)] || null;
+  const eveningSlot = evening[0] || null;
 
-  const dayWord = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : getDayLabel(dayOffset).split(',')[0];
-  let parts = [];
+  const morningRec = morningSlot ? getRecommendation(morningSlot.feelsLike, morningSlot.wind, profile) : null;
+  const middayRec  = middaySlot  ? getRecommendation(middaySlot.feelsLike,  middaySlot.wind,  profile) : null;
+  const eveningRec = eveningSlot ? getRecommendation(eveningSlot.feelsLike, eveningSlot.wind, profile) : null;
+
+  // Emoji per clothing level
+  const e = {
+    'shorts-tee':   '🩳',
+    'tee-pants':    '👕',
+    'long-sleeve':  '👔',
+    'light-jacket': '👚',
+    'jacket':       '🧥',
+    'heavy-jacket': '🥼',
+    'heavy-layers': '🧊',
+  };
+
+  const avgWind   = slots.reduce((a, s) => a + s.wind, 0) / slots.length;
+  const rainCodes = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99];
+  const isWindy   = avgWind > 15;
+  const hasRain   = slots.some(s => rainCodes.includes(s.weatherCode));
+  const hasHeat   = slots.some(s => s.feelsLike > 90);
+  const hasCold   = slots.some(s => s.feelsLike < 32);
+
+  let main = '';
 
   if (morningRec && middayRec && eveningRec) {
-    if (morningRec.id === middayRec.id && middayRec.id === eveningRec.id) {
-      parts.push(`A steady day — ${morningRec.label.toLowerCase()} weather all through.`);
+    const mi = CLOTHING_LEVELS.findIndex(c => c.id === morningRec.id);
+    const di = CLOTHING_LEVELS.findIndex(c => c.id === middayRec.id);
+    const ei = CLOTHING_LEVELS.findIndex(c => c.id === eveningRec.id);
+
+    const allSame = morningRec.id === middayRec.id && middayRec.id === eveningRec.id;
+    const warmingUp = di < mi;           // lower index = warmer clothing tier
+    const coolingDown = di > mi;
+    const coolEvening = ei > di;
+
+    if (allSame) {
+      if (mi <= 1) main = `${e[morningRec.id]} ${morningRec.short} weather all day — soak it up!`;
+      else if (mi >= 4) main = `${e[morningRec.id]} Bundle up — it's a ${morningRec.short.toLowerCase()} kind of day from start to finish.`;
+      else main = `${e[morningRec.id]} A consistent ${morningRec.short.toLowerCase()} day — no wardrobe changes needed.`;
+    } else if (warmingUp && !coolEvening) {
+      // Classic warming day
+      main = `Chilly start this morning ${e[morningRec.id]} — you'll want a ${morningRec.short.toLowerCase()}. By the afternoon it's ${middayRec.short.toLowerCase()} weather ${e[middayRec.id]} and it stays that way into the evening.`;
+    } else if (warmingUp && coolEvening) {
+      // Warms up then cools back down
+      main = `Grab a ${morningRec.short.toLowerCase()} ${e[morningRec.id]} for the morning. It loosens up to ${middayRec.short.toLowerCase()} ${e[middayRec.id]} by afternoon, then cools back down — have a ${eveningRec.short.toLowerCase()} ${e[eveningRec.id]} ready for tonight.`;
+    } else if (coolingDown) {
+      // Nice morning, cools off
+      main = `A comfortable ${morningRec.short.toLowerCase()} ${e[morningRec.id]} morning. Temperatures drop as the day goes on — you'll want a ${eveningRec.short.toLowerCase()} ${e[eveningRec.id]} by evening.`;
+    } else if (morningRec.id === middayRec.id && coolEvening) {
+      // Steady then cools at night
+      main = `${e[morningRec.id]} ${morningRec.short} weather through the afternoon. Don't get caught out — temperatures drop tonight and you'll need a ${eveningRec.short.toLowerCase()} ${e[eveningRec.id]}.`;
     } else {
-      parts.push(`Start with a ${morningRec.label.toLowerCase()} in the morning`);
-      if (CLOTHING_LEVELS.indexOf(CLOTHING_LEVELS.find(c => c.id === middayRec.id)) < CLOTHING_LEVELS.indexOf(CLOTHING_LEVELS.find(c => c.id === morningRec.id))) {
-        parts[0] += `, you can lighten up to ${middayRec.short.toLowerCase()} by midday`;
-      } else if (middayRec.id !== morningRec.id) {
-        parts[0] += `, switch to a ${middayRec.label.toLowerCase()} by midday`;
-      }
-      if (eveningRec.id !== middayRec.id) {
-        const eveningIdx = CLOTHING_LEVELS.findIndex(c => c.id === eveningRec.id);
-        const middayIdx = CLOTHING_LEVELS.findIndex(c => c.id === middayRec.id);
-        if (eveningIdx > middayIdx) {
-          parts[0] += `, and bring a layer for the evening.`;
-        } else {
-          parts[0] += `, and it stays comfortable into the evening.`;
-        }
-      } else {
-        parts[0] += '.';
-      }
+      main = `${e[morningRec.id]} ${morningRec.short} in the morning, warming to ${middayRec.short.toLowerCase()} ${e[middayRec.id]} by afternoon.`;
+    }
+  } else if (morningRec && middayRec) {
+    const mi = CLOTHING_LEVELS.findIndex(c => c.id === morningRec.id);
+    const di = CLOTHING_LEVELS.findIndex(c => c.id === middayRec.id);
+    if (di < mi) {
+      main = `${e[morningRec.id]} Cool morning — ${morningRec.short.toLowerCase()} to start, then warms up to ${middayRec.short.toLowerCase()} ${e[middayRec.id]} weather by midday.`;
+    } else {
+      main = `${e[morningRec.id]} ${morningRec.short} conditions expected through the day.`;
     }
   } else if (morningRec) {
-    parts.push(`The morning calls for a ${morningRec.label.toLowerCase()}.`);
+    main = `${e[morningRec.id]} ${morningRec.short} weather on tap.`;
   }
 
-  const avgWind = slots.reduce((a, s) => a + s.wind, 0) / slots.length;
-  if (avgWind > 15) {
-    parts.push(`Breezy ${dayWord} — wind around ${Math.round(avgWind)} mph.`);
-  }
+  // Append condition notes
+  const notes = [];
+  if (hasRain)  notes.push(`☂️ Rain is in the forecast — don't leave home without an umbrella.`);
+  if (isWindy)  notes.push(`💨 It's breezy out there — wind around ${Math.round(avgWind)} mph will make it feel colder than it looks.`);
+  if (hasHeat)  notes.push(`☀️ Feels like temps climb above 90°F this afternoon — stay hydrated.`);
+  if (hasCold)  notes.push(`🥶 Temps dip below freezing at some point — layers are your friend.`);
 
-  const rainySlots = slots.filter(s => s.weatherCode > 50 && s.weatherCode < 90);
-  if (rainySlots.length > 0) {
-    parts.push("Grab an umbrella — rain is expected.");
-  }
-
-  return parts.join(' ');
+  return notes.length > 0 ? `${main}\n\n${notes[0]}` : main;
 }
 
 // ─── Background gradient ───
@@ -1728,20 +1755,16 @@ function render(direction) {
     </div>
 
     <div class="swipe-area" id="swipe-area">
-      <div class="suggestions">
-        <div class="suggestion-pill">
-          <div class="pill-label">${isToday ? 'Right Now' : 'Midday'}</div>
-          <div class="pill-icon">${nowRec.icon}</div>
-          <div class="pill-rec">${nowRec.short}</div>
-          <div class="pill-temp">${repFeels}°F feels like</div>
+      ${narrative ? `
+      <div class="card narrative-tile">
+        <div class="narrative-tile-label">${isToday ? "Today's Outlook" : "Day Outlook"}</div>
+        <div class="narrative-tile-text">${narrative.replace(/\n\n/g, '<br><br>')}</div>
+        <div class="narrative-tile-temps">
+          <span class="feels">${repFeels}°F feels like</span>
+          ${hiTemp !== null ? `<span>·</span><span>H: ${hiTemp}° / L: ${loTemp}°</span>` : ''}
+          ${repWind > 0 ? `<span>·</span><span>💨 ${repWind} mph</span>` : ''}
         </div>
-        <div class="suggestion-pill">
-          <div class="pill-label">For the Day</div>
-          <div class="pill-icon">${dayRecResult.icon}</div>
-          <div class="pill-rec">${dayRecResult.short}</div>
-          <div class="pill-temp">${nowRec.id !== dayRecResult.id ? 'Bring this along' : 'All day'}</div>
-        </div>
-      </div>
+      </div>` : ''}
 
       ${(() => {
         const hotFeels = isToday ? repFeels : Math.round(daily.temperature_2m_max[dayOffset]);
@@ -1790,7 +1813,6 @@ function render(direction) {
         </div>
         <div class="feels-like">Feels like ${repFeels}°F · Wind ${repWind} mph</div>
         <div class="recommendation">${currentRec.icon} ${currentRec.label}</div>
-        ${narrative ? `<div class="narrative">"${narrative}"</div>` : ''}
       </div>
 
       <div id="hourly-card-container"></div>
