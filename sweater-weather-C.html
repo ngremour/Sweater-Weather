@@ -323,6 +323,7 @@
   .submit-feedback:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   /* Profile card */
+  .profile-card { background: rgba(10,16,36,0.7) !important; }
   .profile-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
   .profile-stat {
     display: flex;
@@ -2095,17 +2096,6 @@ function render(direction) {
 
       <div id="sunrise-card-container"></div>
 
-      ${state.alertLat ? (() => {
-        const windLabel = repWind > 0 ? `💨 ${repWind} mph now` : '';
-        return `
-        <div class="card wind-map-tile">
-          <div class="wind-map-header">
-            <div class="wind-map-title">🌬️ Wind Map</div>
-            <div class="wind-map-speed">${windLabel}</div>
-          </div>
-          <div id="wind-map-leaflet" class="wind-map-frame"></div>
-        </div>`;
-      })() : ''}
 
       <div class="card profile-card">
         <h3>Your Comfort Profile</h3>
@@ -2333,8 +2323,6 @@ function render(direction) {
   // Render independently swipeable cards
   renderHourlyCard();
   renderSunriseCard();
-  // Init wind map after DOM is ready
-  setTimeout(initWindMap, 50);
 
   // Animate content on day change
   if (direction) {
