@@ -1335,6 +1335,52 @@ function getTempRange(feelsLike) {
   return 'warm';
 }
 
+// ─── Streak calculator ───
+function computeStreak() {
+  const log = loadFeedbackLog();
+  if (!log.length) return { current: 0, best: 0, last7: Array(7).fill(false) };
+
+  // Build a Set of unique local date strings from all log entries
+  const loggedDates = new Set(log.map(e => getLocalDateString(new Date(e.date))));
+
+  const today = getLocalDateString(new Date());
+
+  // Last 7 days (index 0 = 6 days ago, index 6 = today)
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return loggedDates.has(getLocalDateString(d));
+  });
+
+  // Current streak: count backwards from today (or yesterday if nothing logged today)
+  let current = 0;
+  let cursor = new Date();
+  // If today not logged yet, start checking from yesterday so streak doesn't break mid-day
+  if (!loggedDates.has(today)) cursor.setDate(cursor.getDate() - 1);
+  while (true) {
+    if (loggedDates.has(getLocalDateString(cursor))) {
+      current++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else break;
+  }
+
+  // Best streak ever
+  const sortedDates = Array.from(loggedDates).sort();
+  let best = 0, run = 0, prev = null;
+  for (const ds of sortedDates) {
+    if (prev) {
+      const prevD = new Date(prev + 'T12:00:00');
+      const curD  = new Date(ds  + 'T12:00:00');
+      const diff  = Math.round((curD - prevD) / 86400000);
+      run = diff === 1 ? run + 1 : 1;
+    } else { run = 1; }
+    best = Math.max(best, run);
+    prev = ds;
+  }
+
+  return { current, best, last7 };
+}
+
 // How stale is the profile? Returns a 0–1 multiplier (1=fresh, 0=fully stale after 120 days)
 function staleFactor(profile) {
   if (!profile.lastLogDate) return 1;
@@ -2074,6 +2120,45 @@ function render(direction) {
 
             <!-- Confidence label -->
             <div style="text-align:center;margin:-4px 0 16px;font-size:15px;font-weight:700;color:${gaugeColor};">${confLabel}</div>
+
+            <!-- Streak section -->
+            ${(() => {
+              const streak = computeStreak();
+              const flames = streak.current >= 30 ? '🔥🔥🔥'
+                           : streak.current >= 14 ? '🔥🔥'
+                           : streak.current >= 3  ? '🔥'
+                           : '';
+              const streakMsg = streak.current === 0  ? 'Log today to start a streak!'
+                              : streak.current === 1  ? 'Started! Log tomorrow to keep it going'
+                              : streak.current < 7   ? `${streak.current}-day streak ${flames}`
+                              : streak.current < 14  ? `${streak.current}-day streak ${flames} One week!`
+                              : streak.current < 30  ? `${streak.current}-day streak ${flames} Two weeks!`
+                              : `${streak.current}-day streak ${flames} On fire!`;
+              const dots = streak.last7.map((logged, i) => {
+                const isToday = i === 6;
+                return `<div style="
+                  width:${isToday ? '22px' : '18px'};
+                  height:${isToday ? '22px' : '18px'};
+                  border-radius:50%;
+                  background:${logged ? '#4ade80' : 'rgba(255,255,255,0.1)'};
+                  border:${isToday ? '2px solid rgba(255,255,255,0.4)' : '1.5px solid rgba(255,255,255,0.15)'};
+                  box-shadow:${logged ? '0 0 6px rgba(74,222,128,0.5)' : 'none'};
+                "></div>`;
+              }).join('');
+              const dayLabels = ['','','','','','','Today'].map((lbl, i) => {
+                return `<div style="font-size:9px;color:rgba(255,255,255,${i===6?'0.45':'0.25'});text-align:center;width:${i===6?'22px':'18px'};letter-spacing:0.3px;">${lbl}</div>`;
+              }).join('');
+              return `
+              <div style="background:rgba(255,255,255,0.05);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);">Daily Streak</div>
+                  ${streak.best > streak.current && streak.best > 1 ? `<div style="font-size:10px;color:rgba(255,255,255,0.3);">Best: ${streak.best}</div>` : ''}
+                </div>
+                <div style="font-size:${streak.current >= 10 ? '13' : '14'}px;font-weight:700;color:${streak.current > 0 ? '#4ade80' : 'rgba(255,255,255,0.4)'};margin-bottom:10px;">${streakMsg}</div>
+                <div style="display:flex;align-items:flex-end;gap:5px;justify-content:center;">${dots}</div>
+                <div style="display:flex;gap:5px;justify-content:center;margin-top:4px;">${dayLabels}</div>
+              </div>`;
+            })()}
 
             <!-- Stat pills -->
             <div style="display:flex;gap:8px;margin-bottom:${isStale ? '10px' : '0'};">
