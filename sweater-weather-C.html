@@ -1971,11 +1971,11 @@ function render(direction) {
           const pct = p.entries > 0 ? Math.max(0.03, rawPct) : 0;
           const fillLen = circ * pct;
 
-          // Color ramp: orange → amber → blue → green
-          const gaugeColor = rawPct < 0.2 ? '#f97316'
-                           : rawPct < 0.5 ? '#f59e0b'
-                           : rawPct < 0.8 ? '#60a5fa'
-                           : '#4ade80';
+          // Always green, deepening as profile fills
+          const gaugeColor = rawPct < 0.2 ? '#4ade80'
+                           : rawPct < 0.5 ? '#34d399'
+                           : rawPct < 0.8 ? '#22c55e'
+                           : '#16a34a';
 
           // Labels
           const confLabel = p.entries === 0  ? 'No data yet'
