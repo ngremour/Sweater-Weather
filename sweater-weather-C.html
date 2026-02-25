@@ -1597,7 +1597,28 @@ function loadFeedbackLog() {
 }
 
 function saveFeedbackLog(log) {
-  localStorage.setItem('sweater-weather-log', JSON.stringify(log));
+  const LOG_LIMIT = 400;
+  let pruned = log;
+  if (log.length > LOG_LIMIT) {
+    // Sort newest-first for processing
+    const sorted = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000; // 90 days ago
+    const recent  = sorted.filter(e => new Date(e.date) >= cutoff);
+    const older   = sorted.filter(e => new Date(e.date) <  cutoff);
+    // For older entries: keep only the most recent log per calendar day
+    // This preserves every unique logged date (streak stays intact)
+    const seenDays = new Set();
+    const dedupedOlder = [];
+    for (const e of older) {
+      const day = getLocalDateString(new Date(e.date));
+      if (!seenDays.has(day)) { seenDays.add(day); dedupedOlder.push(e); }
+    }
+    // Combine, cap at LOG_LIMIT, restore chronological order
+    pruned = [...recent, ...dedupedOlder]
+      .slice(0, LOG_LIMIT)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }
+  localStorage.setItem('sweater-weather-log', JSON.stringify(pruned));
 }
 
 // ─── Weather API (7 days) ───
@@ -2138,6 +2159,28 @@ function render(direction) {
         }
         return '';
       })()}
+
+      ${isToday && state.profile.entries === 0 ? `
+      <div style="
+        background: rgba(74,222,128,0.08);
+        border: 1px solid rgba(74,222,128,0.25);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      ">
+        <div style="font-size:22px;line-height:1;">👋</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#4ade80;margin-bottom:4px;">Welcome to Sweater Weather!</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.5;">
+            This recommendation is a <strong style="color:rgba(255,255,255,0.85);">generic baseline</strong> — the same for everyone.
+            Log what you're actually wearing below and the app will start learning <em>your</em> comfort preferences.
+            It gets meaningfully better after 5–10 logs.
+          </div>
+        </div>
+      </div>` : ''}
 
       ${isToday ? `
       <button class="log-btn" onclick="openLogModal()">
@@ -2794,16 +2837,37 @@ function showBetaInfo() {
     </div>
 
     <div class="about-section">
-      <div class="about-section-title">Questions or Feedback?</div>
-      <div class="about-card" style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;">
-        Email Nick at <strong style="color:#fff;">ngremour@gmail.com</strong> — what felt accurate, what felt off, anything broken or confusing.
+      <div class="about-section-title">Send Feedback</div>
+      <div class="about-card" style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;margin-bottom:8px;">
+        The most useful feedback right now:
+        <ul style="margin:8px 0 0 16px;padding:0;display:flex;flex-direction:column;gap:5px;">
+          <li>Did the recommendation match what you actually wore?</li>
+          <li>After logging a few times, did it feel like it was adapting to you?</li>
+          <li>Anything confusing, broken, or missing?</li>
+          <li>Would you use this app regularly — why or why not?</li>
+        </ul>
+        <div style="margin-top:10px;">Email <strong style="color:#fff;">ngremour@gmail.com</strong> or just hit the button below.</div>
       </div>
+      <button class="about-share-btn" onclick="sendFeedbackEmail()" style="margin-top:0;">✉️ Send Feedback Email</button>
     </div>
 
     <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:rgba(255,255,255,0.25);">Sweater Weather Beta v0.1</div>
   `;
   document.getElementById('beta-overlay').classList.add('open');
   document.getElementById('beta-sheet').classList.add('open');
+}
+
+function sendFeedbackEmail() {
+  const log = loadFeedbackLog();
+  const subject = encodeURIComponent('Sweater Weather Beta Feedback');
+  const body = encodeURIComponent(
+    `Hi Nick,\n\nHere's my feedback on Sweater Weather (${log.length} outfit logs so far):\n\n` +
+    `1. Did the recommendation match what you actually wore?\n\n` +
+    `2. After logging, did it feel like it was adapting to you?\n\n` +
+    `3. Anything confusing, broken, or missing?\n\n` +
+    `4. Would you use this app regularly — why or why not?\n\n`
+  );
+  window.location.href = `mailto:ngremour@gmail.com?subject=${subject}&body=${body}`;
 }
 
 function closeBetaInfo() {
