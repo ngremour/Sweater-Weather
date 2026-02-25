@@ -55,10 +55,26 @@
     padding: 20px 16px 100px;
   }
 
+  /* Refresh bar */
+  .refresh-bar {
+    text-align: center;
+    padding: 6px 0 0;
+  }
+  .refresh-bar button {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.3);
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    padding: 2px 8px;
+  }
+  .refresh-bar button:active { color: rgba(255,255,255,0.6); }
+
   /* Header */
   .header {
     text-align: center;
-    padding: 24px 0 8px;
+    padding: 10px 0 8px;
   }
   .header h1 {
     font-size: 35.4px;
@@ -2061,6 +2077,7 @@ function render(direction) {
   const pillEvening  = eveningResult  || { rec: currentRec, feels: repFeels };
 
   app.innerHTML = `
+    <div class="refresh-bar"><button onclick="window.location.reload(true)">🔄 refresh app</button></div>
     <header class="header">
       <h1>${getWeatherIcon(dayCode)} Sweater Weather</h1>
       <div class="tagline">Forecasts that fit <strong><em>YOU</em></strong></div>
