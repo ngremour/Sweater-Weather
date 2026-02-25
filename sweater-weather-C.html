@@ -2108,6 +2108,36 @@ function render(direction) {
         }).join('')}
       </div>
 
+      ${(() => {
+        const hotFeels = isToday ? repFeels : Math.round(daily.temperature_2m_max[dayOffset]);
+        const anySlotAbove90 = slots.some(s => s.feelsLike > 90) || hotFeels > 90;
+        if (anySlotAbove90) {
+          return '<div class="accessories-alert" style="background:rgba(10,16,36,0.7);border-color:rgba(255,120,50,0.5);"><span class="alert-icon">🌡️</span><div class="alert-text"><strong>Heat alert!</strong> Feels like temps exceed 90°F — stay hydrated and limit time in the sun.</div></div>';
+        }
+        return '';
+      })()}
+
+      ${(() => {
+        // Check if any slot today (or the rep temp) is below 45 — suggest hat & gloves
+        const coldFeels = isToday ? repFeels : Math.round(daily.temperature_2m_min[dayOffset]);
+        const anySlotBelow40 = slots.some(s => s.feelsLike < 45) || coldFeels < 45;
+        if (anySlotBelow40) {
+          return '<div class="accessories-alert"><span class="alert-icon">🧤</span><div class="alert-text"><strong>Hat & gloves weather!</strong> Feels like temps drop below 45°F — bundle up your extremities.</div></div>';
+        }
+        return '';
+      })()}
+
+      ${(() => {
+        const precip = hourly.precipitation_probability;
+        const rainCodes = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99];
+        const hasRain = precip
+          ? slots.some(s => (precip[s.idx] ?? 0) >= 30)
+          : slots.some(s => rainCodes.includes(s.weatherCode));
+        if (hasRain) {
+          return '<div class="accessories-alert"><span class="alert-icon">☂️</span><div class="alert-text"><strong>Bring an umbrella!</strong> Rain is expected at some point today — don\'t get caught out.</div></div>';
+        }
+        return '';
+      })()}
 
       ${isToday ? `
       <button class="log-btn" onclick="openLogModal()">
