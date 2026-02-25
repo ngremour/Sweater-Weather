@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Sweater Weather</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2817,6 +2820,14 @@ function showBetaInfo() {
         <div style="margin-top:10px;">Email <strong style="color:#fff;">ngremour@gmail.com</strong> or just hit the button below.</div>
       </div>
       <button class="about-share-btn" onclick="sendFeedbackEmail()" style="margin-top:0;">✉️ Send Feedback Email</button>
+    </div>
+
+    <div class="about-section">
+      <div class="about-section-title">Not Seeing Updates?</div>
+      <div class="about-card" style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;margin-bottom:8px;">
+        If you added this app to your home screen, iOS may cache it and miss updates. Tap below to force a fresh reload — do this any time something seems off or I let you know there's a new version.
+      </div>
+      <button class="about-share-btn" onclick="window.location.reload(true)" style="margin-top:0;">🔄 Refresh App</button>
     </div>
 
     <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:rgba(255,255,255,0.25);">Sweater Weather Beta v0.1</div>
