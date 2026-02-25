@@ -510,6 +510,7 @@
   }
 
   /* Severe weather alert tile */
+  /* .severe-alert-tile removed — NWS alerts disabled */
   .severe-alert-tile {
     border-radius: 16px;
     padding: 14px 16px;
@@ -1283,7 +1284,6 @@ const state = {
   logComfort: null,
   sunriseDay: 0,
   hourlyDay: 0,
-  alerts: [],
   alertLat: null,
   alertLon: null,
 };
@@ -1810,28 +1810,6 @@ function generateNarrative(slots, profile, dayOffset) {
   return parts.join(' ');
 }
 
-// ─── NWS Severe Weather Alerts ───
-async function fetchAlerts(lat, lon) {
-  try {
-    const res = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lon}&status=actual&message_type=alert,update`, {
-      headers: { 'Accept': 'application/geo+json' }
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const features = data.features || [];
-    return features
-      .map(f => f.properties)
-      .filter(p => p.severity !== 'Minor' && p.severity !== 'Unknown')
-      .map(p => ({
-        event:    p.event || 'Weather Alert',
-        headline: p.headline || p.description?.slice(0, 120) || '',
-        severity: p.severity,   // Extreme, Severe, Moderate
-        urgency:  p.urgency,    // Immediate, Expected, Future
-      }));
-  } catch (e) {
-    return []; // silently fail — non-US or no connection
-  }
-}
 
 // ─── Background gradient ───
 function updateBackground(feelsLike) {
@@ -2099,16 +2077,6 @@ function render(direction) {
 
     <div class="swipe-area" id="swipe-area">
 
-      ${state.alerts.length > 0 ? state.alerts.map(a => {
-        const sevClass = a.severity === 'Extreme' ? 'extreme' : a.severity === 'Severe' ? 'severe' : 'moderate';
-        const exclaim  = a.severity === 'Extreme' ? '❗❗❗' : a.severity === 'Severe' ? '❗❗' : '❗';
-        const clean    = a.headline.replace(/\.\.\..*/,'').replace(/\* [A-Z].*?\.{3}/g,'').trim();
-        return `
-          <div class="severe-alert-tile ${sevClass}">
-            <div class="severe-alert-header">${exclaim} ${a.event} ${exclaim}</div>
-            <div class="severe-alert-headline">${clean}</div>
-          </div>`;
-      }).join('') : ''}
 
       <div class="suggestions">
         ${[
@@ -3025,11 +2993,6 @@ async function loadAndSwitchTo(loc) {
     state.weather = weather; state.location = loc.name;
     state.activeLocationId = loc.id; state.currentDay = 0;
     state.alertLat = loc.lat; state.alertLon = loc.lon;
-    state.alerts = [];
-    fetchAlerts(loc.lat, loc.lon).then(alerts => {
-      state.alerts = alerts;
-      if (alerts.length > 0) render();
-    });
     render();
     document.getElementById('hamburger-btn').style.display = 'flex';
   } catch { showError("Couldn't fetch weather. Check your connection."); }
@@ -3384,11 +3347,6 @@ async function requestLocation() {
         state.currentDay = 0;
         state.alertLat = latitude;
         state.alertLon = longitude;
-        // Fetch NWS alerts non-blocking — re-render if any come back
-        fetchAlerts(latitude, longitude).then(alerts => {
-          state.alerts = alerts;
-          if (alerts.length > 0) render();
-        });
         render();
         document.getElementById('hamburger-btn').style.display = 'flex';
       } catch (e) {
