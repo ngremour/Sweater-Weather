@@ -1780,54 +1780,74 @@ function getWeatherIcon(code) {
 function generateNarrative(slots, profile, dayOffset) {
   if (!slots || slots.length === 0) return '';
 
-  const morning = slots.filter(s => s.hour >= 6 && s.hour <= 10);
-  const midday = slots.filter(s => s.hour >= 11 && s.hour <= 14);
+  const morning = slots.filter(s => s.hour >= 6  && s.hour <= 10);
+  const midday  = slots.filter(s => s.hour >= 11 && s.hour <= 14);
   const evening = slots.filter(s => s.hour >= 17 && s.hour <= 21);
 
   const morningRec = morning.length ? getRecommendation(morning[0].feelsLike, morning[0].wind, profile) : null;
-  const middayRec = midday.length ? getRecommendation(midday[Math.floor(midday.length/2)].feelsLike, midday[Math.floor(midday.length/2)].wind, profile) : null;
+  const middayRec  = midday.length  ? getRecommendation(midday[Math.floor(midday.length/2)].feelsLike, midday[Math.floor(midday.length/2)].wind, profile) : null;
   const eveningRec = evening.length ? getRecommendation(evening[0].feelsLike, evening[0].wind, profile) : null;
 
-  const dayWord = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : getDayLabel(dayOffset).split(',')[0];
-  let parts = [];
+  const morningF = morning.length ? Math.round(morning[0].feelsLike) : null;
+  const middayF  = midday.length  ? Math.round(midday[Math.floor(midday.length/2)].feelsLike) : null;
+  const eveningF = evening.length ? Math.round(evening[0].feelsLike) : null;
+
+  const feelWord = f => f >= 80 ? 'hot' : f >= 70 ? 'warm' : f >= 58 ? 'comfortable' : f >= 45 ? 'cool' : f >= 32 ? 'cold' : 'frigid';
+  const dayWord  = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : getDayLabel(dayOffset).split(',')[0];
+
+  const levelIdx = id => CLOTHING_LEVELS.findIndex(c => c.id === id);
+  let narrative = '';
 
   if (morningRec && middayRec && eveningRec) {
-    if (morningRec.id === middayRec.id && middayRec.id === eveningRec.id) {
-      parts.push(`A steady day — ${morningRec.label.toLowerCase()} weather all through.`);
+    const mIdx = levelIdx(morningRec.id), dIdx = levelIdx(middayRec.id), eIdx = levelIdx(eveningRec.id);
+    const allSame = morningRec.id === middayRec.id && middayRec.id === eveningRec.id;
+    const warming = dIdx < mIdx;           // lower index = lighter clothing = warmer
+    const cooling = eIdx > dIdx;           // higher index = heavier = cooler evening
+    const steadyMidday = morningRec.id === middayRec.id;
+    const steadyEvening = middayRec.id === eveningRec.id;
+
+    if (allSame) {
+      const feel = feelWord(middayF ?? morningF ?? 60);
+      const openers = [
+        `A ${feel}, consistent day — ${morningRec.short.toLowerCase()} from morning through evening.`,
+        `Pretty steady ${dayWord}. ${morningRec.short} works all day.`,
+        `No wardrobe changes needed — ${morningRec.short.toLowerCase()} does the job all day long.`,
+      ];
+      narrative = openers[dayOffset % openers.length];
+    } else if (warming && steadyEvening) {
+      // Cool morning, warms up, stays warm
+      narrative = `${feelWord(morningF).charAt(0).toUpperCase() + feelWord(morningF).slice(1)} start — you'll want ${morningRec.short.toLowerCase()} in the morning, but it warms up nicely. ${middayRec.short} is all you'll need by midday and into the evening.`;
+    } else if (warming && cooling) {
+      // Classic three-phase day
+      narrative = `A ${feelWord(morningF)} morning calls for ${morningRec.short.toLowerCase()}, ${middayRec.short.toLowerCase()} once it warms up around midday, then back to ${eveningRec.short.toLowerCase()} as temperatures drop in the evening.`;
+    } else if (steadyMidday && cooling) {
+      // Same morning/midday, cools in evening
+      narrative = `${morningRec.short} gets you through most of the day, but ${feelWord(eveningF)} evening temps mean you'll want to grab ${eveningRec.short.toLowerCase()} before heading out later.`;
+    } else if (!warming && !cooling) {
+      // Cooling through the day
+      narrative = `Starts ${feelWord(morningF)} enough for ${morningRec.short.toLowerCase()}, but it cools as the day goes on — ${middayRec.short.toLowerCase()} by midday and ${eveningRec.short.toLowerCase()} by evening.`;
     } else {
-      parts.push(`Start with a ${morningRec.label.toLowerCase()} in the morning`);
-      if (CLOTHING_LEVELS.indexOf(CLOTHING_LEVELS.find(c => c.id === middayRec.id)) < CLOTHING_LEVELS.indexOf(CLOTHING_LEVELS.find(c => c.id === morningRec.id))) {
-        parts[0] += `, you can lighten up to ${middayRec.short.toLowerCase()} by midday`;
-      } else if (middayRec.id !== morningRec.id) {
-        parts[0] += `, switch to a ${middayRec.label.toLowerCase()} by midday`;
-      }
-      if (eveningRec.id !== middayRec.id) {
-        const eveningIdx = CLOTHING_LEVELS.findIndex(c => c.id === eveningRec.id);
-        const middayIdx = CLOTHING_LEVELS.findIndex(c => c.id === middayRec.id);
-        if (eveningIdx > middayIdx) {
-          parts[0] += `, and bring a layer for the evening.`;
-        } else {
-          parts[0] += `, and it stays comfortable into the evening.`;
-        }
-      } else {
-        parts[0] += '.';
-      }
+      // Fallback: describe all three
+      narrative = `${morningRec.short} in the morning, ${middayRec.short.toLowerCase()} around midday, and ${eveningRec.short.toLowerCase()} for the evening.`;
     }
+  } else if (morningRec && middayRec) {
+    const warming = levelIdx(middayRec.id) < levelIdx(morningRec.id);
+    narrative = warming
+      ? `${feelWord(morningF).charAt(0).toUpperCase() + feelWord(morningF).slice(1)} morning — ${morningRec.short.toLowerCase()} to start, then lighten up to ${middayRec.short.toLowerCase()} as it warms up.`
+      : `${morningRec.short} in the morning, shifting to ${middayRec.short.toLowerCase()} by midday.`;
   } else if (morningRec) {
-    parts.push(`The morning calls for a ${morningRec.label.toLowerCase()}.`);
+    narrative = `${feelWord(morningF).charAt(0).toUpperCase() + feelWord(morningF).slice(1)} morning — ${morningRec.short.toLowerCase()} is your best bet.`;
   }
 
+  // Append wind/rain notes
   const avgWind = slots.reduce((a, s) => a + s.wind, 0) / slots.length;
-  if (avgWind > 15) {
-    parts.push(`Breezy ${dayWord} — wind around ${Math.round(avgWind)} mph.`);
-  }
+  if (avgWind > 20) narrative += ` Gusty ${dayWord} — wind around ${Math.round(avgWind)} mph.`;
+  else if (avgWind > 13) narrative += ` Breezy ${dayWord}, factor in the wind.`;
 
   const rainySlots = slots.filter(s => s.weatherCode > 50 && s.weatherCode < 90);
-  if (rainySlots.length > 0) {
-    parts.push("Grab an umbrella — rain is expected.");
-  }
+  if (rainySlots.length > 0) narrative += ' Bring an umbrella.';
 
-  return parts.join(' ');
+  return narrative;
 }
 
 
