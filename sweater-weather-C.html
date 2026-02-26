@@ -218,11 +218,12 @@
     margin-top: 16px;
   }
   .summary-card .narrative {
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--text-muted);
-    margin-top: 8px;
-    font-style: italic;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--text);
+    margin-top: 10px;
+    font-style: normal;
   }
 
   /* Timeline */
@@ -2188,8 +2189,47 @@ function render(direction) {
           }
         </div>
         <div class="feels-like">Feels like ${repFeels}°F · Wind ${repWind} mph</div>
-        <div class="recommendation">${currentRec.icon} ${currentRec.label}</div>
-        ${narrative ? `<div class="narrative">"${narrative}"</div>` : ''}
+        ${narrative ? `<div class="narrative">${narrative}</div>` : ''}
+        ${(() => {
+          const chartIndices = getHourlyIndicesForDay(hourly.time, dayOffset);
+          if (!chartIndices.length || !hourly.apparent_temperature) return '';
+          const temps = chartIndices.map(i => hourly.apparent_temperature[i]);
+          const hours = chartIndices.map(i => new Date(hourly.time[i]).getHours());
+          const minT = Math.min(...temps) - 3;
+          const maxT = Math.max(...temps) + 3;
+          const W = 300, H = 70, pad = 10;
+          const x = i => pad + (i / (temps.length - 1)) * (W - pad * 2);
+          const y = t => H - pad - ((t - minT) / (maxT - minT)) * (H - pad * 2);
+          const pts = temps.map((t, i) => `${x(i)},${y(t)}`).join(' ');
+          const fillPts = `${x(0)},${H} ` + temps.map((t,i)=>`${x(i)},${y(t)}`).join(' ') + ` ${x(temps.length-1)},${H}`;
+          // Label every 6 hours
+          const labelMarks = hours.map((h, i) => {
+            if (h % 6 !== 0) return '';
+            const lbl = h === 0 ? '12a' : h === 6 ? '6a' : h === 12 ? '12p' : h === 18 ? '6p' : '';
+            return `<text x="${x(i)}" y="${H - 1}" font-size="8" fill="rgba(255,255,255,0.35)" text-anchor="middle">${lbl}</text>`;
+          }).join('');
+          // Temp label at peak
+          const peakIdx = temps.indexOf(Math.max(...temps));
+          const troughIdx = temps.indexOf(Math.min(...temps));
+          return `
+          <div style="margin-top:14px;">
+            <svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;overflow:visible;">
+              <defs>
+                <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(74,222,128,0.25)"/>
+                  <stop offset="100%" stop-color="rgba(74,222,128,0)"/>
+                </linearGradient>
+              </defs>
+              <polygon points="${fillPts}" fill="url(#chartFill)"/>
+              <polyline points="${pts}" fill="none" stroke="rgba(74,222,128,0.8)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <circle cx="${x(peakIdx)}" cy="${y(temps[peakIdx])}" r="3" fill="#4ade80"/>
+              <text x="${x(peakIdx)}" y="${y(temps[peakIdx]) - 5}" font-size="9" fill="#4ade80" text-anchor="middle" font-weight="600">${Math.round(temps[peakIdx])}°</text>
+              <circle cx="${x(troughIdx)}" cy="${y(temps[troughIdx])}" r="3" fill="rgba(74,222,128,0.5)"/>
+              <text x="${x(troughIdx)}" y="${y(temps[troughIdx]) + 13}" font-size="9" fill="rgba(74,222,128,0.6)" text-anchor="middle">${Math.round(temps[troughIdx])}°</text>
+              ${labelMarks}
+            </svg>
+          </div>`;
+        })()}
       </div>
 
       <div id="hourly-card-container"></div>
