@@ -1725,7 +1725,7 @@ function getHourlyIndicesForDay(hourlyTimes, dayOffset) {
 
 // ─── Recommendation engine ───
 const CLOTHING_LEVELS = [
-  { id: 'shorts-tee',       label: 'Shorts & t-shirt',         short: 'Shorts & t-shirt', icon: '👕', minFeels: 80 },
+  { id: 'shorts-tee',       label: 'T-shirt & shorts',         short: 'T-shirt & shorts', icon: '👕', minFeels: 80 },
   { id: 'tee-pants',        label: 'T-shirt & light pants',    short: 'T-shirt & pants',  icon: '👕', minFeels: 68 },
   { id: 'long-sleeve',      label: 'Long sleeve shirt',        short: 'Long sleeve',     icon: LONG_SLEEVE_IMG, minFeels: 62 },
   { id: 'light-jacket',     label: 'Sweatshirt',               short: 'Sweatshirt',      icon: HOODIE_IMG, minFeels: 55 },
@@ -2214,17 +2214,14 @@ function render(direction) {
           const chartIndices = getHourlyIndicesForDay(hourly.time, dayOffset);
           if (!chartIndices.length || !hourly.apparent_temperature) return '';
           const feels  = chartIndices.map(i => hourly.apparent_temperature[i]);
-          const actual = chartIndices.map(i => hourly.temperature_2m[i]);
           const hours  = chartIndices.map(i => new Date(hourly.time[i]).getHours());
-          const allTemps = [...feels, ...actual];
-          const minT = Math.min(...allTemps) - 3;
-          const maxT = Math.max(...allTemps) + 3;
+          const minT = Math.min(...feels) - 3;
+          const maxT = Math.max(...feels) + 3;
           const W = 300, H = 90, padX = 10, padTop = 16, padBot = 16;
           const x = i => padX + (i / (feels.length - 1)) * (W - padX * 2);
           const y = t => padTop + (1 - (t - minT) / (maxT - minT)) * (H - padTop - padBot);
-          const feelsPts  = feels.map((t, i)  => `${x(i)},${y(t)}`).join(' ');
-          const actualPts = actual.map((t, i) => `${x(i)},${y(t)}`).join(' ');
-          const fillPts   = `${x(0)},${H} ` + feels.map((t,i) => `${x(i)},${y(t)}`).join(' ') + ` ${x(feels.length-1)},${H}`;
+          const feelsPts = feels.map((t, i) => `${x(i)},${y(t)}`).join(' ');
+          const fillPts  = `${x(0)},${H} ` + feels.map((t,i) => `${x(i)},${y(t)}`).join(' ') + ` ${x(feels.length-1)},${H}`;
           // Time labels + feels-like temp above — every 6h + always label the last point
           const labelMarks = hours.map((h, i) => {
             const isLast = i === hours.length - 1;
@@ -2247,7 +2244,6 @@ function render(direction) {
           <div style="margin-top:14px;">
             <div style="display:flex;gap:12px;margin-bottom:4px;justify-content:flex-end;">
               <span style="font-size:9px;color:rgba(74,222,128,0.9);display:flex;align-items:center;gap:3px;"><svg width="16" height="4"><line x1="0" y1="2" x2="16" y2="2" stroke="rgba(74,222,128,0.85)" stroke-width="2"/></svg>Feels like</span>
-              <span style="font-size:9px;color:rgba(147,197,253,0.9);display:flex;align-items:center;gap:3px;"><svg width="16" height="4"><line x1="0" y1="2" x2="16" y2="2" stroke="rgba(147,197,253,0.7)" stroke-width="2" stroke-dasharray="3,2"/></svg>Actual</span>
             </div>
             <svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;overflow:visible;">
               <defs>
@@ -2257,8 +2253,7 @@ function render(direction) {
                 </linearGradient>
               </defs>
               <polygon points="${fillPts}" fill="url(#chartFill2)"/>
-              <polyline points="${actualPts}" fill="none" stroke="rgba(147,197,253,0.7)" stroke-width="1.5" stroke-dasharray="3,2" stroke-linejoin="round" stroke-linecap="round"/>
-              <polyline points="${feelsPts}"  fill="none" stroke="rgba(74,222,128,0.85)" stroke-width="2"   stroke-linejoin="round" stroke-linecap="round"/>
+              <polyline points="${feelsPts}" fill="none" stroke="rgba(74,222,128,0.85)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
               <circle cx="${x(peakF)}"   cy="${y(feels[peakF])}"   r="3" fill="#4ade80"/>
               <text x="${x(peakF)}"   y="${y(feels[peakF]) - 4}"  font-size="9" fill="#4ade80" text-anchor="middle" font-weight="600">${Math.round(feels[peakF])}°</text>
               <circle cx="${x(troughF)}" cy="${y(feels[troughF])}" r="3" fill="rgba(74,222,128,0.5)"/>
