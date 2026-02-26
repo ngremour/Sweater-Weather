@@ -218,12 +218,12 @@
     margin-top: 16px;
   }
   .summary-card .narrative {
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 400;
     line-height: 1.4;
     color: var(--text);
     margin-top: 10px;
-    font-style: normal;
+    font-style: italic;
   }
 
   /* Timeline */
@@ -2199,20 +2199,25 @@ function render(direction) {
           const allTemps = [...feels, ...actual];
           const minT = Math.min(...allTemps) - 3;
           const maxT = Math.max(...allTemps) + 3;
-          const W = 300, H = 80, padX = 10, padTop = 12, padBot = 14;
+          const W = 300, H = 90, padX = 10, padTop = 16, padBot = 16;
           const x = i => padX + (i / (feels.length - 1)) * (W - padX * 2);
           const y = t => padTop + (1 - (t - minT) / (maxT - minT)) * (H - padTop - padBot);
           const feelsPts  = feels.map((t, i)  => `${x(i)},${y(t)}`).join(' ');
           const actualPts = actual.map((t, i) => `${x(i)},${y(t)}`).join(' ');
           const fillPts   = `${x(0)},${H} ` + feels.map((t,i) => `${x(i)},${y(t)}`).join(' ') + ` ${x(feels.length-1)},${H}`;
-          // Time labels — every 6h + always label the last point
+          // Time labels + feels-like temp above — every 6h + always label the last point
           const labelMarks = hours.map((h, i) => {
             const isLast = i === hours.length - 1;
             const is6h = h % 6 === 0;
             if (!is6h && !isLast) return '';
             const lbl = h === 0 ? '12a' : h === 6 ? '6a' : h === 12 ? '12p' : h === 18 ? '6p' : h === 23 ? '11p' : `${h > 12 ? h-12 : h}${h >= 12 ? 'p':'a'}`;
             const anchor = isLast ? 'end' : 'middle';
-            return `<text x="${x(i)}" y="${H}" font-size="8" fill="rgba(255,255,255,0.4)" text-anchor="${anchor}">${lbl}</text>`;
+            const feelsVal = Math.round(feels[i]);
+            // Place temp label just above the feels-like line at this point
+            const tempY = Math.min(y(feels[i]) - 5, H - padBot - 10);
+            return `
+              <text x="${x(i)}" y="${tempY}" font-size="8.5" fill="rgba(74,222,128,0.9)" text-anchor="${anchor}" font-weight="600">${feelsVal}°</text>
+              <text x="${x(i)}" y="${H}" font-size="8" fill="rgba(255,255,255,0.4)" text-anchor="${anchor}">${lbl}</text>`;
           }).join('');
           // Peak feels-like label
           const peakF = feels.indexOf(Math.max(...feels));
