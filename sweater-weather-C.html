@@ -2193,39 +2193,51 @@ function render(direction) {
         ${(() => {
           const chartIndices = getHourlyIndicesForDay(hourly.time, dayOffset);
           if (!chartIndices.length || !hourly.apparent_temperature) return '';
-          const temps = chartIndices.map(i => hourly.apparent_temperature[i]);
-          const hours = chartIndices.map(i => new Date(hourly.time[i]).getHours());
-          const minT = Math.min(...temps) - 3;
-          const maxT = Math.max(...temps) + 3;
-          const W = 300, H = 70, pad = 10;
-          const x = i => pad + (i / (temps.length - 1)) * (W - pad * 2);
-          const y = t => H - pad - ((t - minT) / (maxT - minT)) * (H - pad * 2);
-          const pts = temps.map((t, i) => `${x(i)},${y(t)}`).join(' ');
-          const fillPts = `${x(0)},${H} ` + temps.map((t,i)=>`${x(i)},${y(t)}`).join(' ') + ` ${x(temps.length-1)},${H}`;
-          // Label every 6 hours
+          const feels  = chartIndices.map(i => hourly.apparent_temperature[i]);
+          const actual = chartIndices.map(i => hourly.temperature_2m[i]);
+          const hours  = chartIndices.map(i => new Date(hourly.time[i]).getHours());
+          const allTemps = [...feels, ...actual];
+          const minT = Math.min(...allTemps) - 3;
+          const maxT = Math.max(...allTemps) + 3;
+          const W = 300, H = 80, padX = 10, padTop = 12, padBot = 14;
+          const x = i => padX + (i / (feels.length - 1)) * (W - padX * 2);
+          const y = t => padTop + (1 - (t - minT) / (maxT - minT)) * (H - padTop - padBot);
+          const feelsPts  = feels.map((t, i)  => `${x(i)},${y(t)}`).join(' ');
+          const actualPts = actual.map((t, i) => `${x(i)},${y(t)}`).join(' ');
+          const fillPts   = `${x(0)},${H} ` + feels.map((t,i) => `${x(i)},${y(t)}`).join(' ') + ` ${x(feels.length-1)},${H}`;
+          // Time labels — every 6h + always label the last point
           const labelMarks = hours.map((h, i) => {
-            if (h % 6 !== 0) return '';
-            const lbl = h === 0 ? '12a' : h === 6 ? '6a' : h === 12 ? '12p' : h === 18 ? '6p' : '';
-            return `<text x="${x(i)}" y="${H - 1}" font-size="8" fill="rgba(255,255,255,0.35)" text-anchor="middle">${lbl}</text>`;
+            const isLast = i === hours.length - 1;
+            const is6h = h % 6 === 0;
+            if (!is6h && !isLast) return '';
+            const lbl = h === 0 ? '12a' : h === 6 ? '6a' : h === 12 ? '12p' : h === 18 ? '6p' : h === 23 ? '11p' : `${h > 12 ? h-12 : h}${h >= 12 ? 'p':'a'}`;
+            const anchor = isLast ? 'end' : 'middle';
+            return `<text x="${x(i)}" y="${H}" font-size="8" fill="rgba(255,255,255,0.4)" text-anchor="${anchor}">${lbl}</text>`;
           }).join('');
-          // Temp label at peak
-          const peakIdx = temps.indexOf(Math.max(...temps));
-          const troughIdx = temps.indexOf(Math.min(...temps));
+          // Peak feels-like label
+          const peakF = feels.indexOf(Math.max(...feels));
+          const troughF = feels.indexOf(Math.min(...feels));
+          // Legend
           return `
           <div style="margin-top:14px;">
+            <div style="display:flex;gap:12px;margin-bottom:4px;justify-content:flex-end;">
+              <span style="font-size:9px;color:rgba(74,222,128,0.9);display:flex;align-items:center;gap:3px;"><svg width="16" height="4"><line x1="0" y1="2" x2="16" y2="2" stroke="rgba(74,222,128,0.85)" stroke-width="2"/></svg>Feels like</span>
+              <span style="font-size:9px;color:rgba(147,197,253,0.9);display:flex;align-items:center;gap:3px;"><svg width="16" height="4"><line x1="0" y1="2" x2="16" y2="2" stroke="rgba(147,197,253,0.7)" stroke-width="2" stroke-dasharray="3,2"/></svg>Actual</span>
+            </div>
             <svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;overflow:visible;">
               <defs>
-                <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="rgba(74,222,128,0.25)"/>
+                <linearGradient id="chartFill2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(74,222,128,0.2)"/>
                   <stop offset="100%" stop-color="rgba(74,222,128,0)"/>
                 </linearGradient>
               </defs>
-              <polygon points="${fillPts}" fill="url(#chartFill)"/>
-              <polyline points="${pts}" fill="none" stroke="rgba(74,222,128,0.8)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-              <circle cx="${x(peakIdx)}" cy="${y(temps[peakIdx])}" r="3" fill="#4ade80"/>
-              <text x="${x(peakIdx)}" y="${y(temps[peakIdx]) - 5}" font-size="9" fill="#4ade80" text-anchor="middle" font-weight="600">${Math.round(temps[peakIdx])}°</text>
-              <circle cx="${x(troughIdx)}" cy="${y(temps[troughIdx])}" r="3" fill="rgba(74,222,128,0.5)"/>
-              <text x="${x(troughIdx)}" y="${y(temps[troughIdx]) + 13}" font-size="9" fill="rgba(74,222,128,0.6)" text-anchor="middle">${Math.round(temps[troughIdx])}°</text>
+              <polygon points="${fillPts}" fill="url(#chartFill2)"/>
+              <polyline points="${actualPts}" fill="none" stroke="rgba(147,197,253,0.7)" stroke-width="1.5" stroke-dasharray="3,2" stroke-linejoin="round" stroke-linecap="round"/>
+              <polyline points="${feelsPts}"  fill="none" stroke="rgba(74,222,128,0.85)" stroke-width="2"   stroke-linejoin="round" stroke-linecap="round"/>
+              <circle cx="${x(peakF)}"   cy="${y(feels[peakF])}"   r="3" fill="#4ade80"/>
+              <text x="${x(peakF)}"   y="${y(feels[peakF]) - 4}"  font-size="9" fill="#4ade80" text-anchor="middle" font-weight="600">${Math.round(feels[peakF])}°</text>
+              <circle cx="${x(troughF)}" cy="${y(feels[troughF])}" r="3" fill="rgba(74,222,128,0.5)"/>
+              <text x="${x(troughF)}" y="${y(feels[troughF]) + 12}" font-size="9" fill="rgba(74,222,128,0.6)" text-anchor="middle">${Math.round(feels[troughF])}°</text>
               ${labelMarks}
             </svg>
           </div>`;
