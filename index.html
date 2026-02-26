@@ -1844,8 +1844,12 @@ function generateNarrative(slots, profile, dayOffset) {
   if (avgWind > 20) narrative += ` Gusty ${dayWord} — wind around ${Math.round(avgWind)} mph.`;
   else if (avgWind > 13) narrative += ` Breezy ${dayWord}, factor in the wind.`;
 
-  const rainySlots = slots.filter(s => s.weatherCode > 50 && s.weatherCode < 90);
-  if (rainySlots.length > 0) narrative += ' Bring an umbrella.';
+  const rainCodes = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99];
+  const snowCodes = [71,73,75,77,85,86];
+  const rainySlots = slots.filter(s => rainCodes.includes(s.weatherCode));
+  const snowySlots = slots.filter(s => snowCodes.includes(s.weatherCode));
+  if (snowySlots.length > 0) narrative += ' Snow is expected — dress warmly.';
+  else if (rainySlots.length > 0) narrative += ' Bring an umbrella.';
 
   return narrative;
 }
@@ -2160,9 +2164,13 @@ function render(direction) {
       ${(() => {
         const precip = hourly.precipitation_probability;
         const rainCodes = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99];
-        const hasRain = precip
-          ? slots.some(s => (precip[s.idx] ?? 0) >= 30)
-          : slots.some(s => rainCodes.includes(s.weatherCode));
+        const snowCodes = [71,73,75,77,85,86];
+        // Use weather codes to determine precipitation TYPE, precip_probability for threshold
+        const hasRain = slots.some(s => rainCodes.includes(s.weatherCode) && (precip ? (precip[s.idx] ?? 0) >= 30 : true));
+        const hasSnow = slots.some(s => snowCodes.includes(s.weatherCode) && (precip ? (precip[s.idx] ?? 0) >= 30 : true));
+        if (hasSnow) {
+          return '<div class="accessories-alert"><span class="alert-icon">❄️</span><div class="alert-text"><strong>Snow expected!</strong> Bundle up and plan for slippery conditions.</div></div>';
+        }
         if (hasRain) {
           return '<div class="accessories-alert"><span class="alert-icon">☂️</span><div class="alert-text"><strong>Bring an umbrella!</strong> Rain is expected at some point today — don\'t get caught out.</div></div>';
         }
