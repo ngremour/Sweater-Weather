@@ -1470,12 +1470,13 @@
       <span class="toggle-track"></span>
     </label>
   </div>
-  <div class="settings-row">
-    <span>Español</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="lang-toggle" onchange="toggleLang(this.checked)">
-      <span class="toggle-track"></span>
-    </label>
+  <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:10px;border-bottom:none;">
+    <span id="settings-language-label" style="font-size:14px;">🌐 Language</span>
+    <div class="seg-picker" style="width:100%;">
+      <button class="seg-btn" id="lang-btn-en" onclick="setLang('en')">English</button>
+      <button class="seg-btn" id="lang-btn-es" onclick="setLang('es')">Español</button>
+      <button class="seg-btn" id="lang-btn-de" onclick="setLang('de')">Deutsch</button>
+    </div>
   </div>
 
   <div class="settings-section-label" id="settings-alerts-label">Alerts</div>
@@ -2471,6 +2472,8 @@ function render(direction) {
           <div style="font-size:12px;color:${lt('rgba(255,255,255,0.6)','rgba(0,0,0,0.6)')};line-height:1.5;">
             ${isSpanish()
               ? `Esta recomendación es una <strong style="color:${lt('rgba(255,255,255,0.85)','rgba(0,0,0,0.85)')};">base genérica</strong> — igual para todos. Registra lo que llevas puesto y la app aprenderá <em>tus</em> preferencias de comodidad. Mejora bastante después de 5–10 registros.`
+              : isGerman()
+              ? `Diese Empfehlung ist ein <strong style="color:${lt('rgba(255,255,255,0.85)','rgba(0,0,0,0.85)')};">allgemeiner Ausgangswert</strong> — gleich für alle. Trage ein, was du trägst, und die App lernt <em>deine</em> Komfortpräferenzen. Nach 5–10 Einträgen wird sie deutlich besser.`
               : `This recommendation is a <strong style="color:${lt('rgba(255,255,255,0.85)','rgba(0,0,0,0.85)')};">generic baseline</strong> — the same for everyone. Log what you're actually wearing below and the app will start learning <em>your</em> comfort preferences. It gets meaningfully better after 5–10 logs.`
             }
           </div>
@@ -2701,12 +2704,13 @@ function render(direction) {
               const streak = computeStreak();
               const s = streak.current;
               const flames = s >= 30 ? '🔥🔥🔥' : s >= 14 ? '🔥🔥' : s >= 3 ? '🔥' : '';
-              const streakMsg = s === 0  ? t('profile.streak_0')
-                              : s === 1  ? t('profile.streak_1')
-                              : s < 7   ? (isSpanish() ? `Racha de ${s} días ${flames}` : `${s}-day streak ${flames}`)
-                              : s < 14  ? (isSpanish() ? `Racha de ${s} días ${flames} ¡Una semana!` : `${s}-day streak ${flames} One week!`)
-                              : s < 30  ? (isSpanish() ? `Racha de ${s} días ${flames} ¡Dos semanas!` : `${s}-day streak ${flames} Two weeks!`)
-                              : (isSpanish() ? `Racha de ${s} días ${flames} ¡En llamas!` : `${s}-day streak ${flames} On fire!`);
+              const _streakN = (n, suffix) => isSpanish() ? `Racha de ${n} días ${flames}${suffix ? ' ' + suffix : ''}` : isGerman() ? `${n}-Tage-Serie ${flames}${suffix ? ' ' + suffix : ''}` : `${n}-day streak ${flames}${suffix ? ' ' + suffix : ''}`;
+              const streakMsg = s === 0 ? t('profile.streak_0')
+                              : s === 1 ? t('profile.streak_1')
+                              : s < 7  ? _streakN(s, '')
+                              : s < 14 ? _streakN(s, isSpanish() ? '¡Una semana!' : isGerman() ? 'Eine Woche!' : 'One week!')
+                              : s < 30 ? _streakN(s, isSpanish() ? '¡Dos semanas!' : isGerman() ? 'Zwei Wochen!' : 'Two weeks!')
+                              :          _streakN(s, isSpanish() ? '¡En llamas!' : isGerman() ? 'Auf Hochtouren!' : 'On fire!');
 
               // Which 7-day bracket are we in?
               const bracket     = s === 0 ? 0 : Math.floor((s - 1) / 7);
@@ -3895,7 +3899,9 @@ document.addEventListener('keydown', (e) => {
 function lt(dark, light) { return document.body.classList.contains('light-theme') ? light : dark; }
 
 // ─── Language helpers ───
-function isSpanish() { return localStorage.getItem('sweater-weather-lang') === 'es'; }
+function getLang() { return localStorage.getItem('sweater-weather-lang') || 'en'; }
+function isSpanish() { return getLang() === 'es'; }
+function isGerman()  { return getLang() === 'de'; }
 
 const TRANSLATIONS = {
   en: {
@@ -3903,6 +3909,7 @@ const TRANSLATIONS = {
     'settings.light_theme': 'Light Theme',
     'settings.celsius': 'Use Celsius (°C)',
     'settings.spanish': 'Español',
+    'settings.language': 'Language',
     'app.tagline': 'Forecasts that fit YOU',
     'app.refresh': '🔄 refresh app',
     'app.detecting': 'Detecting location...',
@@ -4024,6 +4031,7 @@ const TRANSLATIONS = {
     'settings.light_theme': 'Tema claro',
     'settings.celsius': 'Usar Celsius (°C)',
     'settings.spanish': 'Español',
+    'settings.language': 'Idioma',
     'app.tagline': 'Pronósticos a tu medida',
     'app.refresh': '🔄 actualizar app',
     'app.detecting': 'Detectando ubicación...',
@@ -4141,11 +4149,132 @@ const TRANSLATIONS = {
     'beta.share_btn': '📤 Compartir mis datos con el desarrollador',
     'beta.feedback_btn': '✉️ Enviar comentarios por email', 'beta.refresh_btn': '🔄 Actualizar app',
     'beta.version': 'Sweater Weather Beta v0.1',
+  },
+  de: {
+    'settings.title': '⚙️ Einstellungen',
+    'settings.light_theme': 'Helles Design',
+    'settings.celsius': 'Celsius verwenden (°C)',
+    'settings.language': 'Sprache',
+    'app.tagline': 'Vorhersagen, die zu DIR passen',
+    'app.refresh': '🔄 App aktualisieren',
+    'app.detecting': 'Standort wird ermittelt...',
+    'day.today': 'Heute', 'day.tomorrow': 'Morgen',
+    'day.sunday': 'Sonntag', 'day.monday': 'Montag', 'day.tuesday': 'Dienstag',
+    'day.wednesday': 'Mittwoch', 'day.thursday': 'Donnerstag', 'day.friday': 'Freitag', 'day.saturday': 'Samstag',
+    'day.sun': 'So', 'day.mon': 'Mo', 'day.tue': 'Di', 'day.wed': 'Mi',
+    'day.thu': 'Do', 'day.fri': 'Fr', 'day.sat': 'Sa',
+    'month.jan': 'Jan', 'month.feb': 'Feb', 'month.mar': 'Mär', 'month.apr': 'Apr',
+    'month.may': 'Mai', 'month.jun': 'Jun', 'month.jul': 'Jul', 'month.aug': 'Aug',
+    'month.sep': 'Sep', 'month.oct': 'Okt', 'month.nov': 'Nov', 'month.dec': 'Dez',
+    'time.morning': 'Morgen', 'time.midday': 'Mittag', 'time.evening': 'Abend',
+    'weather.feels_like': 'Gefühlt', 'weather.wind': 'Wind', 'weather.mph': 'mph',
+    'weather.forecast': '7-Tage-Vorhersage',
+    'alert.heat_title': 'Hitzewarnung!',
+    'alert.heat_body': 'Gefühlte Temperatur über 32°C — trink ausreichend und meide die pralle Sonne.',
+    'alert.cold_title': 'Mütze & Handschuhe!',
+    'alert.cold_body': 'Gefühlte Temperatur unter 7°C — pack dich warm ein.',
+    'alert.snow_title': 'Schnee erwartet!',
+    'alert.snow_body': 'Warm anziehen und auf Glatteis achten.',
+    'alert.rain_title': 'Regenschirm mitnehmen!',
+    'alert.rain_body': 'Regen ist heute erwartet — nicht unvorbereitet rausgehen.',
+    'welcome.title': 'Willkommen bei Sweater Weather!',
+    'log.btn': 'Was trage ich gerade?',
+    'log.subtext': 'Durch das Aufzeichnen deiner Outfits lernt die App deine Komfortpräferenzen',
+    'modal.title': 'Was trägst du gerade?',
+    'modal.subtitle': 'Wähle alles aus, was du gerade anhast',
+    'modal.tops': 'Oberteil', 'modal.bottoms': 'Unterteil', 'modal.accessories': 'Zubehör',
+    'modal.how_feel': 'Wie fühlst du dich gerade?',
+    'modal.too_cold': 'Zu kalt', 'modal.just_right': 'Genau richtig', 'modal.too_hot': 'Zu warm',
+    'modal.log_it': 'Speichern', 'modal.cancel': 'Abbrechen',
+    'comfort.1': 'Eiskalt', 'comfort.2': 'Sehr kalt', 'comfort.3': 'Etwas kalt',
+    'comfort.4': 'Genau richtig', 'comfort.5': 'Etwas warm', 'comfort.6': 'Zu heiß', 'comfort.7': 'Schweißtreibend',
+    'profile.title': 'Dein Komfortprofil', 'profile.logs': 'LOGS',
+    'profile.conf.0': 'Noch keine Daten', 'profile.conf.1': 'Gerade gestartet',
+    'profile.conf.2': 'Lernt deinen Stil...', 'profile.conf.3': 'Wird besser kalibriert',
+    'profile.conf.4': 'Fast fertig!', 'profile.conf.5': 'Vollständig kalibriert ✓',
+    'profile.temp_avg': 'Durchschnitt', 'profile.runs_warm': 'Eher wärmeempfindlich', 'profile.runs_cold': 'Eher kälteempfindlich',
+    'profile.wind_avg': 'Durchschnitt', 'profile.wind_sensitive': 'Windempfindlich', 'profile.wind_resistant': 'Windresistent',
+    'profile.stat_temp': '🌡️ Temp', 'profile.stat_wind': '💨 Wind',
+    'profile.streak': 'Tägliche Serie', 'profile.streak_best': 'Bestleistung:',
+    'profile.streak_0': 'Heute einloggen, um eine Serie zu starten!',
+    'profile.streak_1': 'Gestartet! Morgen einloggen, um weiterzumachen',
+    'profile.badges': 'Abzeichen', 'profile.badges_none': '🏅 Outfit aufzeichnen, um Abzeichen zu verdienen',
+    'profile.badges_earned': 'verdient', 'profile.badges_locked': 'gesperrt',
+    'profile.stale_title': 'Profil veraltet', 'profile.stale_body': 'Outfit aufzeichnen, um es aktuell zu halten',
+    'profile.reset': 'Profil zurücksetzen',
+    'profile.reset_confirm': 'Komfortprofil zurücksetzen? Dadurch werden alle erlernten Präferenzen gelöscht.',
+    'profile.beta': 'Beta-Info', 'profile.share': '📤 Daten mit dem Entwickler teilen',
+    'sunrise.title': 'Sonnenauf- & untergang', 'sunrise.sunrise': 'Sonnenaufgang',
+    'sunrise.sunset': 'Sonnenuntergang', 'sunrise.daylight': 'Tageslicht',
+    'splash.tagline': 'Vorhersagen, die zu DIR passen',
+    'splash.btn': '🌤️ Meine Vorhersage abrufen',
+    'splash.note': 'Sweater Weather benötigt deinen Standort für die Vorhersage. Dein Standort wird nie auf einem Server gespeichert.',
+    'error.no_geo': 'Geolokalisierung wird von deinem Browser nicht unterstützt. Öffne die App in Safari oder Chrome.',
+    'error.denied': "Standortzugriff verweigert. Tippe auf 'Erneut versuchen' und erlaube den Zugriff wenn aufgefordert.",
+    'error.ios_hint': 'Auf dem iPhone: <strong>Einstellungen → Datenschutz → Ortungsdienste → Safari-Websites</strong> und <em>Während der Nutzung</em> wählen.',
+    'error.timeout': 'Zeitüberschreitung beim Standort ermitteln. Stelle sicher, dass Ortungsdienste aktiviert sind.',
+    'error.unknown': 'Standort konnte nicht ermittelt werden. Bitte erneut versuchen.',
+    'error.no_weather': 'Wetterdaten konnten nicht abgerufen werden. Überprüfe deine Verbindung.',
+    'error.retry': 'Erneut versuchen',
+    'loading.location': 'Standort wird ermittelt...', 'loading.weather': 'Wetter wird abgerufen...',
+    'toast.logged': 'Gespeichert! Dein Profil wird intelligenter.',
+    'toast.reset': 'Profil zurückgesetzt.', 'toast.shared': 'Daten geteilt! Danke 🙌',
+    'loc.placeholder': 'Stadt suchen…', 'loc.search_btn': 'Suchen',
+    'loc.searching': 'Suche läuft…', 'loc.no_results': 'Keine Ergebnisse gefunden.',
+    'loc.error': 'Suche fehlgeschlagen. Verbindung prüfen.',
+    'loc.saved': 'Gespeicherte Orte', 'loc.current': 'Aktuell', 'loc.gps': '📡 Aktuellen GPS-Standort verwenden',
+    'rec.shorts-tee': 'T-Shirt & Shorts', 'rec.tee-pants': 'T-Shirt & Hose',
+    'rec.long-sleeve': 'Langärmliges Shirt', 'rec.light-jacket': 'Sweatshirt',
+    'rec.jacket': 'Leichte Jacke', 'rec.heavy-jacket': 'Winterjacke', 'rec.heavy-layers': 'Lagen',
+    'item.tank-top': 'Trägershirt', 'item.tshirt': 'T-Shirt', 'item.long-sleeve': 'Langärmliges Shirt',
+    'item.sweater': 'Pullover/Hoodie', 'item.light-jacket': 'Leichte Jacke', 'item.heavy-jacket': 'Winterjacke',
+    'item.shorts': 'Shorts', 'item.light-pants': 'Leichte Hose', 'item.jeans': 'Jeans/Schwere Hose',
+    'item.hat': 'Mütze / Beanie', 'item.gloves': 'Handschuhe', 'item.scarf': 'Schal', 'item.umbrella': 'Regenschirm',
+    'feel.hot': 'heiß', 'feel.warm': 'warm', 'feel.comfortable': 'angenehm',
+    'feel.cool': 'kühl', 'feel.cold': 'kalt', 'feel.frigid': 'eisig',
+    'narr.today': 'heute', 'narr.tomorrow': 'morgen',
+    'narr.all_same_a': "Ein {feel}, gleichmäßiger Tag — {rec} von morgens bis abends.",
+    'narr.all_same_b': "Ziemlich stabiles Wetter {day}. {rec} passt den ganzen Tag.",
+    'narr.all_same_c': "Kein Kleiderwechsel nötig — {rec} reicht den ganzen Tag aus.",
+    'narr.warming_steady': "{Feel} Start — {rec1} morgens, aber es wird wärmer. {rec2} reicht für Mittag und Abend.",
+    'narr.three_phase': "Der {feel} Morgen verlangt {rec1}, {rec2} wenn es mittags wärmer wird, dann zurück zu {rec3} wenn die Temperatur abends sinkt.",
+    'narr.steady_cool': "{rec1} passt fast den ganzen Tag, aber der {feel} Abend bedeutet du solltest {rec2} mitnehmen.",
+    'narr.cooling': "Beginnt {feel} genug für {rec1}, wird aber kühler — {rec2} mittags und {rec3} abends.",
+    'narr.fallback': "{rec1} morgens, {rec2} mittags und {rec3} abends.",
+    'narr.warm_midday': "{Feel} Morgen — {rec1} zum Start, dann zu {rec2} wechseln wenn es wärmer wird.",
+    'narr.shift': "{rec1} morgens, wechselt zu {rec2} mittags.",
+    'narr.morning_only': "{Feel} Morgen — {rec} ist die beste Wahl.",
+    'narr.gusty': " Stürmischer Tag — Wind um {speed} mph.",
+    'narr.breezy': " Windiger {day}, den Wind einkalkulieren.",
+    'narr.snow': " Schnee erwartet — warm anziehen.",
+    'narr.rain': " Regenschirm mitnehmen.",
+    'settings.alerts_section': 'Benachrichtigungen',
+    'settings.rain_threshold': 'Regenwarnungsschwelle',
+    'settings.data_section': 'Daten',
+    'settings.export_btn': '📤 Meine Daten exportieren',
+    'settings.clear_btn': '🗑️ Alle Daten löschen',
+    'settings.log_count': '{n} Outfit-Einträge gespeichert',
+    'home.section_label': 'Heimatort',
+    'home.row_label': 'Heimatort',
+    'home.not_set': 'Nicht festgelegt — App fragt nach GPS',
+    'home.picker_title': 'Heimatort festlegen',
+    'home.search_placeholder': 'Stadt suchen…',
+    'home.search_btn': 'Suchen',
+    'home.clear': 'Löschen',
+    'home.clear_confirm': 'Heimatort entfernen? Die App fragt beim nächsten Start nach GPS.',
+    'home.cleared_toast': 'Heimatort gelöscht.',
+    'home.saved_toast': '🏠 Heimatort auf {name} gesetzt.',
+    'beta.title': '🧪 Beta-Vorschau', 'beta.thanks': 'Danke, dass du Sweater Weather testest!',
+    'beta.how_it_works': 'Wie es funktioniert', 'beta.share_data': 'Teile deine Daten',
+    'beta.send_feedback': 'Feedback senden', 'beta.not_updates': 'Keine Updates zu sehen?',
+    'beta.share_btn': '📤 Meine Daten mit dem Entwickler teilen',
+    'beta.feedback_btn': '✉️ Feedback per E-Mail senden', 'beta.refresh_btn': '🔄 App aktualisieren',
+    'beta.version': 'Sweater Weather Beta v0.1',
   }
 };
 
 function t(key) {
-  const lang = isSpanish() ? 'es' : 'en';
+  const lang = getLang();
   return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS['en'][key] || key;
 }
 function tFmt(key, vals) {
@@ -4193,20 +4322,26 @@ function applyStoredUnit() {
   const toggle = document.getElementById('unit-toggle');
   if (toggle) toggle.checked = isCelsius();
 }
-function toggleLang(useSpanish) {
-  localStorage.setItem('sweater-weather-lang', useSpanish ? 'es' : 'en');
+function setLang(lang) {
+  localStorage.setItem('sweater-weather-lang', lang);
+  applyStoredLang();
   updateSettingsLabels();
   render();
 }
 function applyStoredLang() {
-  const toggle = document.getElementById('lang-toggle');
-  if (toggle) toggle.checked = isSpanish();
+  const cur = getLang();
+  ['en','es','de'].forEach(l => {
+    const btn = document.getElementById('lang-btn-' + l);
+    if (btn) btn.classList.toggle('active', l === cur);
+  });
 }
 function updateSettingsLabels() {
   const title = document.getElementById('settings-title');
   if (title) title.textContent = t('settings.title');
   const lightLabel = document.getElementById('settings-light-theme-label');
   if (lightLabel) lightLabel.textContent = t('settings.light_theme');
+  const langLabel = document.getElementById('settings-language-label');
+  if (langLabel) langLabel.innerHTML = '🌐 ' + t('settings.language');
   const alertsLabel = document.getElementById('settings-alerts-label');
   if (alertsLabel) alertsLabel.textContent = t('settings.alerts_section');
   const rainLabel = document.getElementById('settings-rain-label');
@@ -4249,6 +4384,8 @@ function clearAllData() {
   const logCount = (loadFeedbackLog() || []).length;
   const msg = isSpanish()
     ? `¿Borrar todos los datos? Esto eliminará ${logCount} registros, tu perfil, las insignias y las ubicaciones guardadas. Esta acción no se puede deshacer.`
+    : isGerman()
+    ? `Alle Daten löschen? Dadurch werden ${logCount} Outfit-Einträge, dein Profil, Abzeichen und gespeicherte Orte gelöscht. Dies kann nicht rückgängig gemacht werden.`
     : `Clear all data? This will delete ${logCount} outfit logs, your profile, badges, and saved locations. This cannot be undone.`;
   if (!confirm(msg)) return;
   localStorage.removeItem('sweater-weather-profile');
@@ -4258,7 +4395,7 @@ function clearAllData() {
   state.profile = { tempOffset: 0, windOffset: 0, entries: 0, lastLogDate: null, ranges: { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() } };
   state.activeLocationId = null;
   closeSettings();
-  showToast(isSpanish() ? '🗑️ Todos los datos borrados.' : '🗑️ All data cleared.');
+  showToast(isSpanish() ? '🗑️ Todos los datos borrados.' : isGerman() ? '🗑️ Alle Daten gelöscht.' : '🗑️ All data cleared.');
   render();
   updateSettingsLabels();
 }
