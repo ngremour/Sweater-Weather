@@ -1321,9 +1321,9 @@
 
 <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
 <div class="settings-sheet" id="settings-sheet">
-  <div class="settings-title">⚙️ Settings</div>
+  <div class="settings-title" id="settings-title">⚙️ Settings</div>
   <div class="settings-row">
-    <span>Light Theme</span>
+    <span id="settings-light-theme-label">Light Theme</span>
     <label class="toggle-switch">
       <input type="checkbox" id="theme-toggle" onchange="toggleTheme(this.checked)">
       <span class="toggle-track"></span>
@@ -1333,6 +1333,13 @@
     <span>Use Celsius (°C)</span>
     <label class="toggle-switch">
       <input type="checkbox" id="unit-toggle" onchange="toggleUnit(this.checked)">
+      <span class="toggle-track"></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <span>Español</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="lang-toggle" onchange="toggleLang(this.checked)">
       <span class="toggle-track"></span>
     </label>
   </div>
@@ -1766,20 +1773,20 @@ function formatHour(h) {
 }
 
 function getDayLabel(dayOffset) {
-  if (dayOffset === 0) return 'Today';
-  if (dayOffset === 1) return 'Tomorrow';
+  if (dayOffset === 0) return t('day.today');
+  if (dayOffset === 1) return t('day.tomorrow');
   const d = getDayDate(dayOffset);
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+  const dayKeys = ['day.sunday','day.monday','day.tuesday','day.wednesday','day.thursday','day.friday','day.saturday'];
+  const monthKeys = ['month.jan','month.feb','month.mar','month.apr','month.may','month.jun','month.jul','month.aug','month.sep','month.oct','month.nov','month.dec'];
+  return `${t(dayKeys[d.getDay()])}, ${t(monthKeys[d.getMonth()])} ${d.getDate()}`;
 }
 
 function getShortDayLabel(dayOffset) {
-  if (dayOffset === 0) return 'Today';
-  if (dayOffset === 1) return 'Tomorrow';
+  if (dayOffset === 0) return t('day.today');
+  if (dayOffset === 1) return t('day.tomorrow');
   const d = getDayDate(dayOffset);
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return days[d.getDay()];
+  const dayKeys = ['day.sun','day.mon','day.tue','day.wed','day.thu','day.fri','day.sat'];
+  return t(dayKeys[d.getDay()]);
 }
 
 function getDayMiddayRec(dayIdx, hourly, daily, profile) {
@@ -1883,8 +1890,8 @@ function generateNarrative(slots, profile, dayOffset) {
   const middayF  = midday.length  ? Math.round(midday[Math.floor(midday.length/2)].feelsLike) : null;
   const eveningF = evening.length ? Math.round(evening[0].feelsLike) : null;
 
-  const feelWord = f => f >= 80 ? 'hot' : f >= 70 ? 'warm' : f >= 58 ? 'comfortable' : f >= 45 ? 'cool' : f >= 32 ? 'cold' : 'frigid';
-  const dayWord  = dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : getDayLabel(dayOffset).split(',')[0];
+  const feelWord = f => f >= 80 ? t('feel.hot') : f >= 70 ? t('feel.warm') : f >= 58 ? t('feel.comfortable') : f >= 45 ? t('feel.cool') : f >= 32 ? t('feel.cold') : t('feel.frigid');
+  const dayWord  = dayOffset === 0 ? t('narr.today') : dayOffset === 1 ? t('narr.tomorrow') : getDayLabel(dayOffset).split(',')[0];
 
   const levelIdx = id => CLOTHING_LEVELS.findIndex(c => c.id === id);
   let narrative = '';
@@ -1899,48 +1906,52 @@ function generateNarrative(slots, profile, dayOffset) {
 
     if (allSame) {
       const feel = feelWord(middayF ?? morningF ?? 60);
-      const openers = [
-        `A ${feel}, consistent day — ${morningRec.short.toLowerCase()} from morning through evening.`,
-        `Pretty steady ${dayWord}. ${morningRec.short} works all day.`,
-        `No wardrobe changes needed — ${morningRec.short.toLowerCase()} does the job all day long.`,
-      ];
-      narrative = openers[dayOffset % openers.length];
+      const capFeel = feel.charAt(0).toUpperCase() + feel.slice(1);
+      const r = recLabel(morningRec);
+      const openerKeys = ['narr.all_same_a', 'narr.all_same_b', 'narr.all_same_c'];
+      narrative = tFmt(openerKeys[dayOffset % openerKeys.length], { feel, Feel: capFeel, rec: r, day: dayWord });
     } else if (warming && steadyEvening) {
       // Cool morning, warms up, stays warm
-      narrative = `${feelWord(morningF).charAt(0).toUpperCase() + feelWord(morningF).slice(1)} start — you'll want ${morningRec.short.toLowerCase()} in the morning, but it warms up nicely. ${middayRec.short} is all you'll need by midday and into the evening.`;
+      const feel = feelWord(morningF); const capFeel = feel.charAt(0).toUpperCase() + feel.slice(1);
+      narrative = tFmt('narr.warming_steady', { feel, Feel: capFeel, rec1: recLabel(morningRec), rec2: recLabel(middayRec) });
     } else if (warming && cooling) {
       // Classic three-phase day
-      narrative = `A ${feelWord(morningF)} morning calls for ${morningRec.short.toLowerCase()}, ${middayRec.short.toLowerCase()} once it warms up around midday, then back to ${eveningRec.short.toLowerCase()} as temperatures drop in the evening.`;
+      const feel = feelWord(morningF);
+      narrative = tFmt('narr.three_phase', { feel, Feel: feel.charAt(0).toUpperCase() + feel.slice(1), rec1: recLabel(morningRec), rec2: recLabel(middayRec), rec3: recLabel(eveningRec) });
     } else if (steadyMidday && cooling) {
       // Same morning/midday, cools in evening
-      narrative = `${morningRec.short} gets you through most of the day, but ${feelWord(eveningF)} evening temps mean you'll want to grab ${eveningRec.short.toLowerCase()} before heading out later.`;
+      const feel = feelWord(eveningF);
+      narrative = tFmt('narr.steady_cool', { feel, rec1: recLabel(morningRec), rec2: recLabel(eveningRec) });
     } else if (!warming && !cooling) {
       // Cooling through the day
-      narrative = `Starts ${feelWord(morningF)} enough for ${morningRec.short.toLowerCase()}, but it cools as the day goes on — ${middayRec.short.toLowerCase()} by midday and ${eveningRec.short.toLowerCase()} by evening.`;
+      const feel = feelWord(morningF);
+      narrative = tFmt('narr.cooling', { feel, rec1: recLabel(morningRec), rec2: recLabel(middayRec), rec3: recLabel(eveningRec) });
     } else {
       // Fallback: describe all three
-      narrative = `${morningRec.short} in the morning, ${middayRec.short.toLowerCase()} around midday, and ${eveningRec.short.toLowerCase()} for the evening.`;
+      narrative = tFmt('narr.fallback', { rec1: recLabel(morningRec), rec2: recLabel(middayRec), rec3: recLabel(eveningRec) });
     }
   } else if (morningRec && middayRec) {
     const warming = levelIdx(middayRec.id) < levelIdx(morningRec.id);
+    const feel = feelWord(morningF); const capFeel = feel.charAt(0).toUpperCase() + feel.slice(1);
     narrative = warming
-      ? `${feelWord(morningF).charAt(0).toUpperCase() + feelWord(morningF).slice(1)} morning — ${morningRec.short.toLowerCase()} to start, then lighten up to ${middayRec.short.toLowerCase()} as it warms up.`
-      : `${morningRec.short} in the morning, shifting to ${middayRec.short.toLowerCase()} by midday.`;
+      ? tFmt('narr.warm_midday', { feel, Feel: capFeel, rec1: recLabel(morningRec), rec2: recLabel(middayRec) })
+      : tFmt('narr.shift', { rec1: recLabel(morningRec), rec2: recLabel(middayRec) });
   } else if (morningRec) {
-    narrative = `${feelWord(morningF).charAt(0).toUpperCase() + feelWord(morningF).slice(1)} morning — ${morningRec.short.toLowerCase()} is your best bet.`;
+    const feel = feelWord(morningF); const capFeel = feel.charAt(0).toUpperCase() + feel.slice(1);
+    narrative = tFmt('narr.morning_only', { feel, Feel: capFeel, rec: recLabel(morningRec) });
   }
 
   // Append wind/rain notes
   const avgWind = slots.reduce((a, s) => a + s.wind, 0) / slots.length;
-  if (avgWind > 20) narrative += ` Gusty ${dayWord} — wind around ${Math.round(avgWind)} mph.`;
-  else if (avgWind > 13) narrative += ` Breezy ${dayWord}, factor in the wind.`;
+  if (avgWind > 20) narrative += tFmt('narr.gusty', { day: dayWord, speed: Math.round(avgWind) });
+  else if (avgWind > 13) narrative += tFmt('narr.breezy', { day: dayWord });
 
   const rainCodes = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99];
   const snowCodes = [71,73,75,77,85,86];
   const rainySlots = slots.filter(s => rainCodes.includes(s.weatherCode));
   const snowySlots = slots.filter(s => snowCodes.includes(s.weatherCode));
-  if (snowySlots.length > 0) narrative += ' Snow is expected — dress warmly.';
-  else if (rainySlots.length > 0) narrative += ' Bring an umbrella.';
+  if (snowySlots.length > 0) narrative += t('narr.snow');
+  else if (rainySlots.length > 0) narrative += t('narr.rain');
 
   return narrative;
 }
@@ -2193,11 +2204,11 @@ function render(direction) {
   const pillEvening  = eveningResult  || { rec: currentRec, feels: repFeels };
 
   app.innerHTML = `
-    <div class="refresh-bar"><button onclick="window.location.reload(true)">🔄 refresh app</button></div>
+    <div class="refresh-bar"><button onclick="window.location.reload(true)">${t('app.refresh')}</button></div>
     <header class="header">
       <h1>${getWeatherIcon(dayCode)} Sweater Weather</h1>
-      <div class="tagline">Forecasts that fit <strong><em>YOU</em></strong></div>
-      <div class="location" onclick="requestLocation()">${state.location || 'Detecting location...'}</div>
+      <div class="tagline">${t('app.tagline').replace('YOU', '<strong><em>YOU</em></strong>')}</div>
+      <div class="location" onclick="requestLocation()">${state.location || t('app.detecting')}</div>
     </header>
 
     <div class="day-nav">
@@ -2216,9 +2227,9 @@ function render(direction) {
 
       <div class="suggestions">
         ${[
-          { label: 'Morning', p: pillMorning },
-          { label: 'Midday',  p: pillMidday  },
-          { label: 'Evening', p: pillEvening },
+          { label: t('time.morning'), p: pillMorning },
+          { label: t('time.midday'),  p: pillMidday  },
+          { label: t('time.evening'), p: pillEvening },
         ].map(({ label, p }) => {
           const rain = p.rain ?? 0;
           const rainColor = rain >= 70 ? '#60a5fa' : rain >= 40 ? '#93c5fd' : lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.35)');
@@ -2226,7 +2237,7 @@ function render(direction) {
           return `<div class="suggestion-pill">
             <div class="pill-label">${label}</div>
             <div class="pill-icon">${p.rec.icon}</div>
-            <div class="pill-rec">${p.rec.short}</div>
+            <div class="pill-rec">${recLabel(p.rec)}</div>
             <div class="pill-temp">${displayTemp(p.feels)}${tempUnit()}</div>
             ${rainLine}
           </div>`;
@@ -2237,7 +2248,7 @@ function render(direction) {
         const hotFeels = isToday ? repFeels : Math.round(daily.temperature_2m_max[dayOffset]);
         const anySlotAbove90 = slots.some(s => s.feelsLike > 90) || hotFeels > 90;
         if (anySlotAbove90) {
-          return '<div class="accessories-alert" style="background:rgba(10,16,36,0.7);border-color:rgba(255,120,50,0.5);"><span class="alert-icon">🌡️</span><div class="alert-text"><strong>Heat alert!</strong> Feels like temps exceed 90°F — stay hydrated and limit time in the sun.</div></div>';
+          return `<div class="accessories-alert" style="background:rgba(10,16,36,0.7);border-color:rgba(255,120,50,0.5);"><span class="alert-icon">🌡️</span><div class="alert-text"><strong>${t('alert.heat_title')}</strong> ${t('alert.heat_body')}</div></div>`;
         }
         return '';
       })()}
@@ -2247,7 +2258,7 @@ function render(direction) {
         const coldFeels = isToday ? repFeels : Math.round(daily.temperature_2m_min[dayOffset]);
         const anySlotBelow40 = slots.some(s => s.feelsLike < 45) || coldFeels < 45;
         if (anySlotBelow40) {
-          return '<div class="accessories-alert"><span class="alert-icon">🧤</span><div class="alert-text"><strong>Hat & gloves weather!</strong> Feels like temps drop below 45°F — bundle up your extremities.</div></div>';
+          return `<div class="accessories-alert"><span class="alert-icon">🧤</span><div class="alert-text"><strong>${t('alert.cold_title')}</strong> ${t('alert.cold_body')}</div></div>`;
         }
         return '';
       })()}
@@ -2260,10 +2271,10 @@ function render(direction) {
         const hasRain = slots.some(s => rainCodes.includes(s.weatherCode) && (precip ? (precip[s.idx] ?? 0) >= 30 : true));
         const hasSnow = slots.some(s => snowCodes.includes(s.weatherCode) && (precip ? (precip[s.idx] ?? 0) >= 30 : true));
         if (hasSnow) {
-          return '<div class="accessories-alert"><span class="alert-icon">❄️</span><div class="alert-text"><strong>Snow expected!</strong> Bundle up and plan for slippery conditions.</div></div>';
+          return `<div class="accessories-alert"><span class="alert-icon">❄️</span><div class="alert-text"><strong>${t('alert.snow_title')}</strong> ${t('alert.snow_body')}</div></div>`;
         }
         if (hasRain) {
-          return '<div class="accessories-alert"><span class="alert-icon">☂️</span><div class="alert-text"><strong>Bring an umbrella!</strong> Rain is expected at some point today — don\'t get caught out.</div></div>';
+          return `<div class="accessories-alert"><span class="alert-icon">☂️</span><div class="alert-text"><strong>${t('alert.rain_title')}</strong> ${t('alert.rain_body')}</div></div>`;
         }
         return '';
       })()}
@@ -2281,20 +2292,21 @@ function render(direction) {
       ">
         <div style="font-size:22px;line-height:1;">👋</div>
         <div>
-          <div style="font-size:13px;font-weight:700;color:#4ade80;margin-bottom:4px;">Welcome to Sweater Weather!</div>
+          <div style="font-size:13px;font-weight:700;color:#4ade80;margin-bottom:4px;">${t('welcome.title')}</div>
           <div style="font-size:12px;color:${lt('rgba(255,255,255,0.6)','rgba(0,0,0,0.6)')};line-height:1.5;">
-            This recommendation is a <strong style="color:${lt('rgba(255,255,255,0.85)','rgba(0,0,0,0.85)')};">generic baseline</strong> — the same for everyone.
-            Log what you're actually wearing below and the app will start learning <em>your</em> comfort preferences.
-            It gets meaningfully better after 5–10 logs.
+            ${isSpanish()
+              ? `Esta recomendación es una <strong style="color:${lt('rgba(255,255,255,0.85)','rgba(0,0,0,0.85)')};">base genérica</strong> — igual para todos. Registra lo que llevas puesto y la app aprenderá <em>tus</em> preferencias de comodidad. Mejora bastante después de 5–10 registros.`
+              : `This recommendation is a <strong style="color:${lt('rgba(255,255,255,0.85)','rgba(0,0,0,0.85)')};">generic baseline</strong> — the same for everyone. Log what you're actually wearing below and the app will start learning <em>your</em> comfort preferences. It gets meaningfully better after 5–10 logs.`
+            }
           </div>
         </div>
       </div>` : ''}
 
       ${isToday ? `
       <button class="log-btn" onclick="openLogModal()">
-        <span class="log-btn-icon">✏️</span> What Am I Wearing?
+        <span class="log-btn-icon">✏️</span> ${t('log.btn')}
       </button>
-      <div style="text-align:center;font-size:12px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin:-8px 0 16px;line-height:1.4;">Logging your outfit teaches the app your comfort preferences</div>
+      <div style="text-align:center;font-size:12px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin:-8px 0 16px;line-height:1.4;">${t('log.subtext')}</div>
       ` : ''}
 
       <div class="card summary-card">
@@ -2307,7 +2319,7 @@ function render(direction) {
               : ''
           }
         </div>
-        <div class="feels-like">Feels like ${displayTemp(repFeels)}${tempUnit()} · Wind ${repWind} mph</div>
+        <div class="feels-like">${t('weather.feels_like')} ${displayTemp(repFeels)}${tempUnit()} · ${t('weather.wind')} ${repWind} ${t('weather.mph')}</div>
         ${narrative ? `<div class="narrative">${narrative}</div>` : ''}
         ${(() => {
           const chartIndices = getHourlyIndicesForDay(hourly.time, dayOffset);
@@ -2366,7 +2378,7 @@ function render(direction) {
       <div id="hourly-card-container"></div>
 
       <div class="card">
-        <div class="forecast-title">7-Day Forecast</div>
+        <div class="forecast-title">${t('weather.forecast')}</div>
         ${Array.from({length: TOTAL_DAYS}, (_, i) => {
           const hi = daily ? displayTemp(Math.round(daily.temperature_2m_max[i])) : '--';
           const lo = daily ? displayTemp(Math.round(daily.temperature_2m_min[i])) : '--';
@@ -2376,7 +2388,7 @@ function render(direction) {
             <div class="forecast-row${i === dayOffset ? ' active-day' : ''}" onclick="goToDay(${i})">
               <div class="fc-day">${getShortDayLabel(i)}</div>
               <div class="fc-icon">${getWeatherIcon(code)}</div>
-              <div class="fc-rec">${rec.short}</div>
+              <div class="fc-rec">${recLabel(rec)}</div>
               <div class="fc-temps">
                 <span class="fc-hi">${hi}°</span>
                 <span class="fc-lo">${lo}°</span>
@@ -2390,7 +2402,7 @@ function render(direction) {
 
 
       <div class="card profile-card">
-        <h3>Your Comfort Profile</h3>
+        <h3>${t('profile.title')}</h3>
         ${(() => {
           const p = state.profile;
           const stale = staleFactor(p);
@@ -2412,20 +2424,20 @@ function render(direction) {
                            : '#16a34a';
 
           // Labels
-          const confLabel = p.entries === 0  ? 'No data yet'
-                          : p.entries < 3    ? 'Just getting started'
-                          : p.entries < 8    ? 'Learning your style...'
-                          : p.entries < 15   ? 'Getting dialed in'
-                          : p.entries < 20   ? 'Almost there!'
-                          : 'Fully dialed in ✓';
+          const confLabel = p.entries === 0  ? t('profile.conf.0')
+                          : p.entries < 3    ? t('profile.conf.1')
+                          : p.entries < 8    ? t('profile.conf.2')
+                          : p.entries < 15   ? t('profile.conf.3')
+                          : p.entries < 20   ? t('profile.conf.4')
+                          : t('profile.conf.5');
 
           function offsetLabel(off) {
-            if (Math.abs(off) < 0.5) return 'Average';
-            return off > 0 ? `Runs warm` : `Runs cold`;
+            if (Math.abs(off) < 0.5) return t('profile.temp_avg');
+            return off > 0 ? t('profile.runs_warm') : t('profile.runs_cold');
           }
-          const windLabel = p.windOffset === 0  ? 'Average'
-                          : p.windOffset < 0    ? 'Wind sensitive'
-                          : 'Wind resistant';
+          const windLabel = p.windOffset === 0  ? t('profile.wind_avg')
+                          : p.windOffset < 0    ? t('profile.wind_sensitive')
+                          : t('profile.wind_resistant');
 
           // Tick marks at 25%, 50%, 75% along the arc
           function arcPoint(fraction) {
@@ -2495,7 +2507,7 @@ function render(direction) {
                 font-size="10"
                 font-weight="700"
                 font-family="-apple-system,BlinkMacSystemFont,sans-serif"
-                letter-spacing="2">LOGS</text>
+                letter-spacing="2">${t('profile.logs')}</text>
 
               <!-- Min / Max labels -->
               <text x="22" y="106" text-anchor="middle"
@@ -2514,12 +2526,12 @@ function render(direction) {
               const streak = computeStreak();
               const s = streak.current;
               const flames = s >= 30 ? '🔥🔥🔥' : s >= 14 ? '🔥🔥' : s >= 3 ? '🔥' : '';
-              const streakMsg = s === 0  ? 'Log today to start a streak!'
-                              : s === 1  ? 'Started! Log tomorrow to keep it going'
-                              : s < 7   ? `${s}-day streak ${flames}`
-                              : s < 14  ? `${s}-day streak ${flames} One week!`
-                              : s < 30  ? `${s}-day streak ${flames} Two weeks!`
-                              : `${s}-day streak ${flames} On fire!`;
+              const streakMsg = s === 0  ? t('profile.streak_0')
+                              : s === 1  ? t('profile.streak_1')
+                              : s < 7   ? (isSpanish() ? `Racha de ${s} días ${flames}` : `${s}-day streak ${flames}`)
+                              : s < 14  ? (isSpanish() ? `Racha de ${s} días ${flames} ¡Una semana!` : `${s}-day streak ${flames} One week!`)
+                              : s < 30  ? (isSpanish() ? `Racha de ${s} días ${flames} ¡Dos semanas!` : `${s}-day streak ${flames} Two weeks!`)
+                              : (isSpanish() ? `Racha de ${s} días ${flames} ¡En llamas!` : `${s}-day streak ${flames} On fire!`);
 
               // Which 7-day bracket are we in?
               const bracket     = s === 0 ? 0 : Math.floor((s - 1) / 7);
@@ -2543,8 +2555,8 @@ function render(direction) {
               return `
               <div style="background:${lt('rgba(255,255,255,0.05)','rgba(0,0,0,0.05)')};border-radius:14px;padding:12px 14px;margin-bottom:12px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.45)')};">Daily Streak</div>
-                  ${streak.best > s && streak.best > 1 ? `<div style="font-size:10px;color:${lt('rgba(255,255,255,0.3)','rgba(0,0,0,0.4)')};">Best: ${streak.best}</div>` : ''}
+                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.45)')};">${t('profile.streak')}</div>
+                  ${streak.best > s && streak.best > 1 ? `<div style="font-size:10px;color:${lt('rgba(255,255,255,0.3)','rgba(0,0,0,0.4)')};">${t('profile.streak_best')} ${streak.best}</div>` : ''}
                 </div>
                 <div style="font-size:14px;font-weight:700;color:${s > 0 ? '#4ade80' : lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.4)')};margin-bottom:10px;">${streakMsg}</div>
                 <div style="display:flex;gap:5px;justify-content:center;">${dotCols}</div>
@@ -2556,7 +2568,7 @@ function render(direction) {
               const earned = new Set(loadBadges());
               if (earned.size === 0) return `
                 <div style="text-align:center;padding:10px 0 14px;font-size:12px;color:${lt('rgba(255,255,255,0.25)','rgba(0,0,0,0.4)')};">
-                  🏅 Log an outfit to start earning badges
+                  ${t('profile.badges_none')}
                 </div>`;
               const earnedBadges = BADGES.filter(b => earned.has(b.id));
               const locked = BADGES.length - earnedBadges.length;
@@ -2573,8 +2585,8 @@ function render(direction) {
               return `
               <div style="margin-bottom:14px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.45)')};">Badges</div>
-                  <div style="font-size:10px;color:${lt('rgba(255,255,255,0.25)','rgba(0,0,0,0.4)')};">${earnedBadges.length}/${BADGES.length} earned · ${locked} locked</div>
+                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.45)')};">${t('profile.badges')}</div>
+                  <div style="font-size:10px;color:${lt('rgba(255,255,255,0.25)','rgba(0,0,0,0.4)')};">${earnedBadges.length}/${BADGES.length} ${t('profile.badges_earned')} · ${locked} ${t('profile.badges_locked')}</div>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;">${chips}</div>
               </div>`;
@@ -2583,11 +2595,11 @@ function render(direction) {
             <!-- Stat pills -->
             <div style="display:flex;gap:8px;margin-bottom:${isStale ? '10px' : '0'};">
               <div style="flex:1;background:${lt('rgba(255,255,255,0.07)','rgba(0,0,0,0.06)')};border-radius:12px;padding:11px 10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin-bottom:5px;">🌡️ Temp</div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin-bottom:5px;">${t('profile.stat_temp')}</div>
                 <div style="font-size:14px;font-weight:700;color:${lt('#fff','#1a1a2e')};">${p.entries < 3 ? '—' : offsetLabel(p.tempOffset)}</div>
               </div>
               <div style="flex:1;background:${lt('rgba(255,255,255,0.07)','rgba(0,0,0,0.06)')};border-radius:12px;padding:11px 10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin-bottom:5px;">💨 Wind</div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin-bottom:5px;">${t('profile.stat_wind')}</div>
                 <div style="font-size:14px;font-weight:700;color:${lt('#fff','#1a1a2e')};">${p.entries < 3 ? '—' : windLabel}</div>
               </div>
             </div>
@@ -2595,18 +2607,18 @@ function render(direction) {
             ${isStale ? `<div style="display:flex;align-items:center;gap:8px;background:rgba(255,210,60,0.1);border:1px solid rgba(255,210,60,0.3);border-radius:12px;padding:10px 12px;margin-top:10px;">
               <span style="font-size:18px;">⚠️</span>
               <div>
-                <div style="font-size:13px;font-weight:700;color:#FFD23F;">Profile aging</div>
-                <div style="font-size:12px;color:${lt('rgba(255,255,255,0.5)','rgba(0,0,0,0.5)')};margin-top:1px;">Log an outfit to keep it sharp</div>
+                <div style="font-size:13px;font-weight:700;color:#FFD23F;">${t('profile.stale_title')}</div>
+                <div style="font-size:12px;color:${lt('rgba(255,255,255,0.5)','rgba(0,0,0,0.5)')};margin-top:1px;">${t('profile.stale_body')}</div>
               </div>
             </div>` : ''}
           `;
         })()}
         <div class="btn-row">
-          ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">Reset Profile</button>` : ''}
-          <button class="reset-btn" onclick="openLogModal()">What Am I Wearing?</button>
-          <button class="beta-btn" onclick="showBetaInfo()">Beta Info</button>
+          ${state.profile.entries > 0 ? `<button class="reset-btn" onclick="resetProfile()">${t('profile.reset')}</button>` : ''}
+          <button class="reset-btn" onclick="openLogModal()">${t('log.btn')}</button>
+          <button class="beta-btn" onclick="showBetaInfo()">${t('profile.beta')}</button>
         </div>
-        <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> Share data with developer</button>
+        <button class="share-data-btn" onclick="shareUserData()"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📤</span> ${t('profile.share').replace('📤 ', '')}</button>
       </div>
     </div>
   `;
@@ -2721,7 +2733,7 @@ function toggleItem(id) {
 function setLogComfort(level) {
   state.logComfort = level;
   const emojis = ['🥶','🥶','😰','😊','😅','🥵','🥵'];
-  const labels = ['Freezing','Very cold','A bit cold','Just right','A bit warm','Too hot','Burning up'];
+  const labels = [t('comfort.1'),t('comfort.2'),t('comfort.3'),t('comfort.4'),t('comfort.5'),t('comfort.6'),t('comfort.7')];
   const emojiEl = document.querySelector('.cur-emoji');
   const labelEl = document.querySelector('.cur-label');
   if (emojiEl) emojiEl.textContent = emojis[level - 1];
@@ -2747,7 +2759,7 @@ function renderModal() {
 
   const renderChips = (items) => items.map(item =>
     `<div class="clothing-chip${state.selectedItems.includes(item.id) ? ' selected' : ''}" onclick="toggleItem('${item.id}')">
-      <span class="chip-icon">${item.icon}</span>${item.label}
+      <span class="chip-icon">${item.icon}</span>${t('item.' + item.id)}
     </div>`
   ).join('');
 
@@ -2757,43 +2769,43 @@ function renderModal() {
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title-row">
-        <div class="modal-title">What are you wearing?</div>
+        <div class="modal-title">${t('modal.title')}</div>
         <button class="modal-close-btn" onclick="closeLogModal()">✕</button>
       </div>
-      <div class="modal-subtitle">Select everything you've got on right now</div>
+      <div class="modal-subtitle">${t('modal.subtitle')}</div>
 
-      <div class="modal-section-label">Tops</div>
+      <div class="modal-section-label">${t('modal.tops')}</div>
       <div class="clothing-grid">${renderChips(CLOTHING_ITEMS.tops)}</div>
 
-      <div class="modal-section-label">Bottoms</div>
+      <div class="modal-section-label">${t('modal.bottoms')}</div>
       <div class="clothing-grid">${renderChips(CLOTHING_ITEMS.bottoms)}</div>
 
-      <div class="modal-section-label">Accessories</div>
+      <div class="modal-section-label">${t('modal.accessories')}</div>
       <div class="clothing-grid">${renderChips(CLOTHING_ITEMS.accessories)}</div>
 
       <div class="modal-comfort">
-        <div class="modal-comfort-label">How do you feel right now?</div>
+        <div class="modal-comfort-label">${t('modal.how_feel')}</div>
         <div class="comfort-slider-wrap">
           <div class="comfort-emoji-row">
             <span class="end-emoji">🥶</span>
             <div class="comfort-current">
               <span class="cur-emoji">${['🥶','🥶','😰','😊','😅','🥵','🥵'][state.logComfort - 1]}</span>
-              <span class="cur-label">${['Freezing','Very cold','A bit cold','Just right','A bit warm','Too hot','Burning up'][state.logComfort - 1]}</span>
+              <span class="cur-label">${[t('comfort.1'),t('comfort.2'),t('comfort.3'),t('comfort.4'),t('comfort.5'),t('comfort.6'),t('comfort.7')][state.logComfort - 1]}</span>
             </div>
             <span class="end-emoji">🥵</span>
           </div>
           <input type="range" min="1" max="7" value="${state.logComfort}" class="comfort-slider"
             oninput="setLogComfort(parseInt(this.value))" />
           <div class="comfort-tick-labels">
-            <span>Too cold</span><span>Just right</span><span>Too hot</span>
+            <span>${t('modal.too_cold')}</span><span>${t('modal.just_right')}</span><span>${t('modal.too_hot')}</span>
           </div>
         </div>
       </div>
 
       <button class="modal-submit" onclick="submitLog()" ${canSubmit ? '' : 'disabled'}>
-        Log It
+        ${t('modal.log_it')}
       </button>
-      <button class="modal-cancel" onclick="closeLogModal()">Cancel</button>
+      <button class="modal-cancel" onclick="closeLogModal()">${t('modal.cancel')}</button>
     </div>
   `;
 
@@ -2908,18 +2920,18 @@ function submitLog() {
   saveProfile(state.profile);
 
   closeLogModal();
-  showToast('Logged! Your profile is getting smarter.');
+  showToast(t('toast.logged'));
   checkAndAwardBadges(logEntry);
   render();
 }
 
 function resetProfile() {
-  if (confirm('Reset your comfort profile? This clears all learned preferences.')) {
+  if (confirm(t('profile.reset_confirm'))) {
     state.profile = { tempOffset: 0, windOffset: 0, entries: 0, lastLogDate: null, ranges: { cold: makeRangeProfile(), mild: makeRangeProfile(), warm: makeRangeProfile() } };
     saveProfile(state.profile);
     localStorage.removeItem('sweater-weather-log');
     localStorage.removeItem('sweater-weather-badges');
-    showToast('Profile reset to baseline.');
+    showToast(t('toast.reset'));
     render();
   }
 }
@@ -2941,8 +2953,8 @@ function showBetaInfo() {
   el.innerHTML = `
     <div class="about-section">
       <div class="about-card">
-        <div class="about-beta-badge">🧪 Beta Preview</div>
-        <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;">Thanks for testing Sweater Weather!</div>
+        <div class="about-beta-badge">${t('beta.title')}</div>
+        <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;">${t('beta.thanks')}</div>
         <div style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;">
           This app learns your personal comfort preferences and uses them to recommend what to wear — not just what the weather is.
           The more you log, the smarter it gets.
@@ -2951,7 +2963,7 @@ function showBetaInfo() {
     </div>
 
     <div class="about-section">
-      <div class="about-section-title">How It Works</div>
+      <div class="about-section-title">${t('beta.how_it_works')}</div>
       <div class="about-card">
         <div class="about-row">
           <div class="about-row-icon">🌤️</div>
@@ -2985,18 +2997,18 @@ function showBetaInfo() {
     </div>
 
     <div class="about-section">
-      <div class="about-section-title">Share Your Data</div>
+      <div class="about-section-title">${t('beta.share_data')}</div>
       <div class="about-card" style="margin-bottom:8px;">
         <div style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;">
           Once you've logged <strong style="color:#fff;">10 or more outfits</strong>, please export and email your data.
           It helps improve the recommendation algorithm for everyone.
         </div>
       </div>
-      <button class="about-share-btn" onclick="shareUserData()">📤 Share My Data With Developer</button>
+      <button class="about-share-btn" onclick="shareUserData()">${t('beta.share_btn')}</button>
     </div>
 
     <div class="about-section">
-      <div class="about-section-title">Send Feedback</div>
+      <div class="about-section-title">${t('beta.send_feedback')}</div>
       <div class="about-card" style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;margin-bottom:8px;">
         The most useful feedback right now:
         <ul style="margin:8px 0 0 16px;padding:0;display:flex;flex-direction:column;gap:5px;">
@@ -3007,18 +3019,18 @@ function showBetaInfo() {
         </ul>
         <div style="margin-top:10px;">Email <strong style="color:#fff;">ngremour@gmail.com</strong> or just hit the button below.</div>
       </div>
-      <button class="about-share-btn" onclick="sendFeedbackEmail()" style="margin-top:0;">✉️ Send Feedback Email</button>
+      <button class="about-share-btn" onclick="sendFeedbackEmail()" style="margin-top:0;">${t('beta.feedback_btn')}</button>
     </div>
 
     <div class="about-section">
-      <div class="about-section-title">Not Seeing Updates?</div>
+      <div class="about-section-title">${t('beta.not_updates')}</div>
       <div class="about-card" style="font-size:13px;color:rgba(255,255,255,0.65);line-height:1.5;margin-bottom:8px;">
         If you added this app to your home screen, iOS may cache it and miss updates. Tap below to force a fresh reload — do this any time something seems off or I let you know there's a new version.
       </div>
-      <button class="about-share-btn" onclick="window.location.reload(true)" style="margin-top:0;">🔄 Refresh App</button>
+      <button class="about-share-btn" onclick="window.location.reload(true)" style="margin-top:0;">${t('beta.refresh_btn')}</button>
     </div>
 
-    <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:rgba(255,255,255,0.25);">Sweater Weather Beta v0.1</div>
+    <div style="text-align:center;padding:10px 0 4px;font-size:11px;color:rgba(255,255,255,0.25);">${t('beta.version')}</div>
   `;
   document.getElementById('beta-overlay').classList.add('open');
   document.getElementById('beta-sheet').classList.add('open');
@@ -3093,22 +3105,22 @@ function renderLocationsMenu() {
   const el = document.getElementById('loc-menu-content');
   el.innerHTML = `
     <div class="loc-search-row">
-      <input class="loc-search-input" id="loc-search-input" type="text" placeholder="Search for a city…" />
-      <button class="loc-search-btn" onclick="searchLocations()">Search</button>
+      <input class="loc-search-input" id="loc-search-input" type="text" placeholder="${t('loc.placeholder')}" />
+      <button class="loc-search-btn" onclick="searchLocations()">${t('loc.search_btn')}</button>
     </div>
     <div class="loc-search-results" id="loc-search-results"></div>
-    ${locs.length ? '<div class="loc-section-label">Saved Locations</div>' : ''}
+    ${locs.length ? `<div class="loc-section-label">${t('loc.saved')}</div>` : ''}
     ${locs.map(loc => `
       <div class="loc-item${loc.id === activeId ? ' active-loc' : ''}" onclick="switchToLocation('${loc.id}')">
         <div class="loc-icon">${loc.id === activeId ? '📍' : '🗺️'}</div>
         <div class="loc-info">
           <div class="loc-name">${loc.name}</div>
-          ${loc.id === activeId ? '<div class="loc-active-badge">Current</div>' : ''}
+          ${loc.id === activeId ? `<div class="loc-active-badge">${t('loc.current')}</div>` : ''}
         </div>
         <button class="loc-delete-btn" onclick="event.stopPropagation();deleteLocation('${loc.id}')">✕</button>
       </div>
     `).join('')}
-    <button class="gps-add-btn" onclick="addGpsLocation()">📡 Use Current GPS Location</button>
+    <button class="gps-add-btn" onclick="addGpsLocation()">${t('loc.gps')}</button>
   `;
   const inp = document.getElementById('loc-search-input');
   if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') searchLocations(); });
@@ -3118,12 +3130,12 @@ async function searchLocations() {
   const query = (document.getElementById('loc-search-input').value || '').trim();
   if (!query) return;
   const resultsEl = document.getElementById('loc-search-results');
-  resultsEl.innerHTML = '<div style="color:rgba(255,255,255,0.5);font-size:13px;padding:6px 2px">Searching…</div>';
+  resultsEl.innerHTML = `<div style="color:rgba(255,255,255,0.5);font-size:13px;padding:6px 2px">${t('loc.searching')}</div>`;
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`);
     const results = await res.json();
     if (!results.length) {
-      resultsEl.innerHTML = '<div style="color:rgba(255,255,255,0.45);font-size:13px;padding:6px 2px">No results found.</div>';
+      resultsEl.innerHTML = `<div style="color:rgba(255,255,255,0.45);font-size:13px;padding:6px 2px">${t('loc.no_results')}</div>`;
       return;
     }
     resultsEl.innerHTML = results.map(r => {
@@ -3137,7 +3149,7 @@ async function searchLocations() {
       </div>`;
     }).join('');
   } catch {
-    resultsEl.innerHTML = '<div style="color:rgba(255,100,100,0.7);font-size:13px;padding:6px 2px">Search failed. Check connection.</div>';
+    resultsEl.innerHTML = `<div style="color:rgba(255,100,100,0.7);font-size:13px;padding:6px 2px">${t('loc.error')}</div>`;
   }
 }
 
@@ -3240,7 +3252,8 @@ function buildSunriseHTML(d) {
   const sunY = (cy - r * Math.sin(angle)).toFixed(1);
   const arcLeft = cx - r, arcRight = cx + r;
 
-  const dayLabel = d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : sunriseDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const sunriseDayKeys = ['day.sunday','day.monday','day.tuesday','day.wednesday','day.thursday','day.friday','day.saturday'];
+  const dayLabel = d === 0 ? t('day.today') : d === 1 ? t('day.tomorrow') : t(sunriseDayKeys[sunriseDate.getDay()]);
   const dots = Array.from({length: TOTAL_DAYS}, (_, i) =>
     `<div class="sunrise-dot${i === d ? ' active' : ''}" onclick="goToSunriseDay(${i})"></div>`
   ).join('');
@@ -3250,7 +3263,7 @@ function buildSunriseHTML(d) {
       <div class="sunrise-nav">
         <button class="sunrise-nav-arrow" onclick="goToSunriseDay(${d - 1})" ${d === 0 ? 'disabled' : ''}>‹</button>
         <div>
-          <div class="sunrise-label" style="margin-bottom:0;text-align:center;">Sunrise & Sunset</div>
+          <div class="sunrise-label" style="margin-bottom:0;text-align:center;">${t('sunrise.title')}</div>
           <div class="sunrise-nav-day">${dayLabel}</div>
         </div>
         <button class="sunrise-nav-arrow" onclick="goToSunriseDay(${d + 1})" ${d >= TOTAL_DAYS - 1 ? 'disabled' : ''}>›</button>
@@ -3280,16 +3293,16 @@ function buildSunriseHTML(d) {
         <div class="sun-time-item">
           <div class="sun-time-icon">🌅</div>
           <div class="sun-time-val">${formatTime(sunriseDate)}</div>
-          <div class="sun-time-lbl">Sunrise</div>
+          <div class="sun-time-lbl">${t('sunrise.sunrise')}</div>
         </div>
         <div class="sun-daylight">
           <div class="daylight-val">${daylightH}h ${daylightM}m</div>
-          <div class="daylight-lbl">Daylight</div>
+          <div class="daylight-lbl">${t('sunrise.daylight')}</div>
         </div>
         <div class="sun-time-item">
           <div class="sun-time-icon">🌇</div>
           <div class="sun-time-val">${formatTime(sunsetDate)}</div>
-          <div class="sun-time-lbl">Sunset</div>
+          <div class="sun-time-lbl">${t('sunrise.sunset')}</div>
         </div>
       </div>
     </div>`;
@@ -3391,7 +3404,7 @@ async function shareUserData() {
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: 'Sweater Weather Data' });
-      showToast('Data shared! Thank you 🙌');
+      showToast(t('toast.shared'));
       return;
     } catch(e) {
       if (e.name === 'AbortError') return; // user cancelled
@@ -3484,9 +3497,9 @@ function showSplash() {
   document.getElementById('app').innerHTML = `
     <div class="splash">
       <h1>Sweater Weather</h1>
-      <div class="splash-tagline">Forecasts that fit <strong><em>YOU</em></strong></div>
-      <button class="splash-btn" onclick="requestLocation()">🌤️ Get My Forecast</button>
-      <div class="splash-note">Sweater Weather needs your location to show you the forecast. Your location is never stored on any server.</div>
+      <div class="splash-tagline">${t('splash.tagline').replace('YOU', '<strong><em>YOU</em></strong>')}</div>
+      <button class="splash-btn" onclick="requestLocation()">${t('splash.btn')}</button>
+      <div class="splash-note">${t('splash.note')}</div>
     </div>
   `;
 }
@@ -3495,7 +3508,7 @@ function showSplash() {
 function showError(message, isLocationDenied) {
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const iosHint = isLocationDenied && isIOS
-    ? `<p class="error-hint">On iPhone, go to <strong>Settings → Privacy & Security → Location Services → Safari Websites</strong> and set it to <em>While Using</em>.</p>`
+    ? `<p class="error-hint">${t('error.ios_hint')}</p>`
     : '';
   document.getElementById('app').innerHTML = `
     <header class="header">
@@ -3505,7 +3518,7 @@ function showError(message, isLocationDenied) {
       <div class="error-icon">📍</div>
       <p>${message}</p>
       ${iosHint}
-      <button class="retry-btn" onclick="requestLocation()">Try Again</button>
+      <button class="retry-btn" onclick="requestLocation()">${t('error.retry')}</button>
     </div>
   `;
 }
@@ -3513,11 +3526,11 @@ function showError(message, isLocationDenied) {
 // ─── Location + init ───
 async function requestLocation() {
   document.getElementById('app').innerHTML = `
-    <div class="loading"><div class="spinner"></div><p>Finding your location...</p></div>
+    <div class="loading"><div class="spinner"></div><p>${t('loading.location')}</p></div>
   `;
 
   if (!navigator.geolocation) {
-    showError("Geolocation isn't supported by your browser. Try opening the app in Safari or Chrome on your phone.");
+    showError(t('error.no_geo'));
     return;
   }
 
@@ -3526,7 +3539,7 @@ async function requestLocation() {
       const { latitude, longitude } = pos.coords;
       try {
         const loadingP = document.querySelector('.loading p');
-        if (loadingP) loadingP.textContent = 'Fetching weather...';
+        if (loadingP) loadingP.textContent = t('loading.weather');
         const [weather, locName] = await Promise.all([
           fetchWeather(latitude, longitude),
           reverseGeocode(latitude, longitude),
@@ -3552,16 +3565,16 @@ async function requestLocation() {
         document.getElementById('hamburger-btn').style.display = 'flex';
         document.getElementById('gear-btn').style.display = 'flex';
       } catch (e) {
-        showError("Couldn't fetch weather data. Check your connection and try again.");
+        showError(t('error.no_weather'));
       }
     },
     (err) => {
       if (err.code === 1) {
-        showError("Location access denied. Tap 'Try Again' and allow location access when prompted.", true);
+        showError(t('error.denied'), true);
       } else if (err.code === 3) {
-        showError("Location request timed out. Make sure Location Services are enabled and try again.", false);
+        showError(t('error.timeout'), false);
       } else {
-        showError("Couldn't determine your location. Please try again.");
+        showError(t('error.unknown'));
       }
     },
     { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
@@ -3577,6 +3590,235 @@ document.addEventListener('keydown', (e) => {
 // ─── Light/dark inline style helper ───
 function lt(dark, light) { return document.body.classList.contains('light-theme') ? light : dark; }
 
+// ─── Language helpers ───
+function isSpanish() { return localStorage.getItem('sweater-weather-lang') === 'es'; }
+
+const TRANSLATIONS = {
+  en: {
+    'settings.title': '⚙️ Settings',
+    'settings.light_theme': 'Light Theme',
+    'settings.celsius': 'Use Celsius (°C)',
+    'settings.spanish': 'Español',
+    'app.tagline': 'Forecasts that fit YOU',
+    'app.refresh': '🔄 refresh app',
+    'app.detecting': 'Detecting location...',
+    'day.today': 'Today', 'day.tomorrow': 'Tomorrow',
+    'day.sunday': 'Sunday', 'day.monday': 'Monday', 'day.tuesday': 'Tuesday',
+    'day.wednesday': 'Wednesday', 'day.thursday': 'Thursday', 'day.friday': 'Friday', 'day.saturday': 'Saturday',
+    'day.sun': 'Sun', 'day.mon': 'Mon', 'day.tue': 'Tue', 'day.wed': 'Wed',
+    'day.thu': 'Thu', 'day.fri': 'Fri', 'day.sat': 'Sat',
+    'month.jan': 'Jan', 'month.feb': 'Feb', 'month.mar': 'Mar', 'month.apr': 'Apr',
+    'month.may': 'May', 'month.jun': 'Jun', 'month.jul': 'Jul', 'month.aug': 'Aug',
+    'month.sep': 'Sep', 'month.oct': 'Oct', 'month.nov': 'Nov', 'month.dec': 'Dec',
+    'time.morning': 'Morning', 'time.midday': 'Midday', 'time.evening': 'Evening',
+    'weather.feels_like': 'Feels like', 'weather.wind': 'Wind', 'weather.mph': 'mph',
+    'weather.forecast': '7-Day Forecast',
+    'alert.heat_title': 'Heat alert!',
+    'alert.heat_body': 'Feels like temps exceed 90°F — stay hydrated and limit time in the sun.',
+    'alert.cold_title': 'Hat & gloves weather!',
+    'alert.cold_body': 'Feels like temps drop below 45°F — bundle up your extremities.',
+    'alert.snow_title': 'Snow expected!',
+    'alert.snow_body': 'Bundle up and plan for slippery conditions.',
+    'alert.rain_title': 'Bring an umbrella!',
+    'alert.rain_body': "Rain is expected at some point today — don't get caught out.",
+    'welcome.title': 'Welcome to Sweater Weather!',
+    'log.btn': 'What Am I Wearing?',
+    'log.subtext': 'Logging your outfit teaches the app your comfort preferences',
+    'modal.title': 'What are you wearing?',
+    'modal.subtitle': "Select everything you've got on right now",
+    'modal.tops': 'Tops', 'modal.bottoms': 'Bottoms', 'modal.accessories': 'Accessories',
+    'modal.how_feel': 'How do you feel right now?',
+    'modal.too_cold': 'Too cold', 'modal.just_right': 'Just right', 'modal.too_hot': 'Too hot',
+    'modal.log_it': 'Log It', 'modal.cancel': 'Cancel',
+    'comfort.1': 'Freezing', 'comfort.2': 'Very cold', 'comfort.3': 'A bit cold',
+    'comfort.4': 'Just right', 'comfort.5': 'A bit warm', 'comfort.6': 'Too hot', 'comfort.7': 'Burning up',
+    'profile.title': 'Your Comfort Profile', 'profile.logs': 'LOGS',
+    'profile.conf.0': 'No data yet', 'profile.conf.1': 'Just getting started',
+    'profile.conf.2': 'Learning your style...', 'profile.conf.3': 'Getting dialed in',
+    'profile.conf.4': 'Almost there!', 'profile.conf.5': 'Fully dialed in ✓',
+    'profile.temp_avg': 'Average', 'profile.runs_warm': 'Runs warm', 'profile.runs_cold': 'Runs cold',
+    'profile.wind_avg': 'Average', 'profile.wind_sensitive': 'Wind sensitive', 'profile.wind_resistant': 'Wind resistant',
+    'profile.stat_temp': '🌡️ Temp', 'profile.stat_wind': '💨 Wind',
+    'profile.streak': 'Daily Streak', 'profile.streak_best': 'Best:',
+    'profile.streak_0': 'Log today to start a streak!',
+    'profile.streak_1': 'Started! Log tomorrow to keep it going',
+    'profile.badges': 'Badges', 'profile.badges_none': '🏅 Log an outfit to start earning badges',
+    'profile.badges_earned': 'earned', 'profile.badges_locked': 'locked',
+    'profile.stale_title': 'Profile aging', 'profile.stale_body': 'Log an outfit to keep it sharp',
+    'profile.reset': 'Reset Profile',
+    'profile.reset_confirm': 'Reset your comfort profile? This clears all learned preferences.',
+    'profile.beta': 'Beta Info', 'profile.share': '📤 Share data with developer',
+    'sunrise.title': 'Sunrise & Sunset', 'sunrise.sunrise': 'Sunrise',
+    'sunrise.sunset': 'Sunset', 'sunrise.daylight': 'Daylight',
+    'splash.tagline': 'Forecasts that fit YOU',
+    'splash.btn': '🌤️ Get My Forecast',
+    'splash.note': 'Sweater Weather needs your location to show you the forecast. Your location is never stored on any server.',
+    'error.no_geo': "Geolocation isn't supported by your browser. Try opening the app in Safari or Chrome on your phone.",
+    'error.denied': "Location access denied. Tap 'Try Again' and allow location access when prompted.",
+    'error.ios_hint': 'On iPhone, go to <strong>Settings → Privacy & Security → Location Services → Safari Websites</strong> and set it to <em>While Using</em>.',
+    'error.timeout': 'Location request timed out. Make sure Location Services are enabled and try again.',
+    'error.unknown': "Couldn't determine your location. Please try again.",
+    'error.no_weather': "Couldn't fetch weather data. Check your connection and try again.",
+    'error.retry': 'Try Again',
+    'loading.location': 'Finding your location...', 'loading.weather': 'Fetching weather...',
+    'toast.logged': 'Logged! Your profile is getting smarter.',
+    'toast.reset': 'Profile reset to baseline.', 'toast.shared': 'Data shared! Thank you 🙌',
+    'loc.placeholder': 'Search for a city…', 'loc.search_btn': 'Search',
+    'loc.searching': 'Searching…', 'loc.no_results': 'No results found.',
+    'loc.error': 'Search failed. Check connection.',
+    'loc.saved': 'Saved Locations', 'loc.current': 'Current', 'loc.gps': '📡 Use Current GPS Location',
+    'rec.shorts-tee': 'T-shirt & shorts', 'rec.tee-pants': 'T-shirt & pants',
+    'rec.long-sleeve': 'Long sleeve', 'rec.light-jacket': 'Sweatshirt',
+    'rec.jacket': 'Light jacket', 'rec.heavy-jacket': 'Heavy jacket', 'rec.heavy-layers': 'Layers',
+    'item.tank-top': 'Tank top', 'item.tshirt': 'T-shirt', 'item.long-sleeve': 'Long sleeve shirt',
+    'item.sweater': 'Sweater/Hoodie', 'item.light-jacket': 'Light jacket', 'item.heavy-jacket': 'Heavy jacket',
+    'item.shorts': 'Shorts', 'item.light-pants': 'Light pants', 'item.jeans': 'Jeans/Heavy pants',
+    'item.hat': 'Hat / Beanie', 'item.gloves': 'Gloves', 'item.scarf': 'Scarf', 'item.umbrella': 'Umbrella',
+    'feel.hot': 'hot', 'feel.warm': 'warm', 'feel.comfortable': 'comfortable',
+    'feel.cool': 'cool', 'feel.cold': 'cold', 'feel.frigid': 'frigid',
+    'narr.today': 'today', 'narr.tomorrow': 'tomorrow',
+    'narr.all_same_a': "A {feel}, consistent day — {rec} from morning through evening.",
+    'narr.all_same_b': "Pretty steady {day}. {rec} works all day.",
+    'narr.all_same_c': "No wardrobe changes needed — {rec} does the job all day long.",
+    'narr.warming_steady': "{Feel} start — you'll want {rec1} in the morning, but it warms up nicely. {rec2} is all you'll need by midday and into the evening.",
+    'narr.three_phase': "A {feel} morning calls for {rec1}, {rec2} once it warms up around midday, then back to {rec3} as temperatures drop in the evening.",
+    'narr.steady_cool': "{rec1} gets you through most of the day, but {feel} evening temps mean you'll want to grab {rec2} before heading out later.",
+    'narr.cooling': "Starts {feel} enough for {rec1}, but it cools as the day goes on — {rec2} by midday and {rec3} by evening.",
+    'narr.fallback': "{rec1} in the morning, {rec2} around midday, and {rec3} for the evening.",
+    'narr.warm_midday': "{Feel} morning — {rec1} to start, then lighten up to {rec2} as it warms up.",
+    'narr.shift': "{rec1} in the morning, shifting to {rec2} by midday.",
+    'narr.morning_only': "{Feel} morning — {rec} is your best bet.",
+    'narr.gusty': " Gusty {day} — wind around {speed} mph.",
+    'narr.breezy': " Breezy {day}, factor in the wind.",
+    'narr.snow': " Snow is expected — dress warmly.",
+    'narr.rain': " Bring an umbrella.",
+    'beta.title': '🧪 Beta Preview', 'beta.thanks': 'Thanks for testing Sweater Weather!',
+    'beta.how_it_works': 'How It Works', 'beta.share_data': 'Share Your Data',
+    'beta.send_feedback': 'Send Feedback', 'beta.not_updates': 'Not Seeing Updates?',
+    'beta.share_btn': '📤 Share My Data With Developer',
+    'beta.feedback_btn': '✉️ Send Feedback Email', 'beta.refresh_btn': '🔄 Refresh App',
+    'beta.version': 'Sweater Weather Beta v0.1',
+  },
+  es: {
+    'settings.title': '⚙️ Ajustes',
+    'settings.light_theme': 'Tema claro',
+    'settings.celsius': 'Usar Celsius (°C)',
+    'settings.spanish': 'Español',
+    'app.tagline': 'Pronósticos a tu medida',
+    'app.refresh': '🔄 actualizar app',
+    'app.detecting': 'Detectando ubicación...',
+    'day.today': 'Hoy', 'day.tomorrow': 'Mañana',
+    'day.sunday': 'Domingo', 'day.monday': 'Lunes', 'day.tuesday': 'Martes',
+    'day.wednesday': 'Miércoles', 'day.thursday': 'Jueves', 'day.friday': 'Viernes', 'day.saturday': 'Sábado',
+    'day.sun': 'Dom', 'day.mon': 'Lun', 'day.tue': 'Mar', 'day.wed': 'Mié',
+    'day.thu': 'Jue', 'day.fri': 'Vie', 'day.sat': 'Sáb',
+    'month.jan': 'Ene', 'month.feb': 'Feb', 'month.mar': 'Mar', 'month.apr': 'Abr',
+    'month.may': 'May', 'month.jun': 'Jun', 'month.jul': 'Jul', 'month.aug': 'Ago',
+    'month.sep': 'Sep', 'month.oct': 'Oct', 'month.nov': 'Nov', 'month.dec': 'Dic',
+    'time.morning': 'Mañana', 'time.midday': 'Mediodía', 'time.evening': 'Noche',
+    'weather.feels_like': 'Sensación', 'weather.wind': 'Viento', 'weather.mph': 'mph',
+    'weather.forecast': 'Pronóstico 7 días',
+    'alert.heat_title': '¡Alerta de calor!',
+    'alert.heat_body': 'La sensación térmica supera 90°F — hidrátate y limita el tiempo al sol.',
+    'alert.cold_title': '¡Abrígate bien!',
+    'alert.cold_body': 'La sensación térmica baja de 45°F — cúbrete bien.',
+    'alert.snow_title': '¡Se espera nieve!',
+    'alert.snow_body': 'Abrígate y ten cuidado con superficies resbaladizas.',
+    'alert.rain_title': '¡Lleva paraguas!',
+    'alert.rain_body': 'Se espera lluvia hoy — no salgas sin paraguas.',
+    'welcome.title': '¡Bienvenido a Sweater Weather!',
+    'log.btn': '¿Qué me estoy poniendo?',
+    'log.subtext': 'Registrar tu ropa enseña a la app tus preferencias de comodidad',
+    'modal.title': '¿Qué te estás poniendo?',
+    'modal.subtitle': 'Selecciona todo lo que traes puesto ahora',
+    'modal.tops': 'Parte de arriba', 'modal.bottoms': 'Parte de abajo', 'modal.accessories': 'Accesorios',
+    'modal.how_feel': '¿Cómo te sientes ahora mismo?',
+    'modal.too_cold': 'Mucho frío', 'modal.just_right': 'Perfecto', 'modal.too_hot': 'Mucho calor',
+    'modal.log_it': 'Guardar', 'modal.cancel': 'Cancelar',
+    'comfort.1': 'Congelado/a', 'comfort.2': 'Mucho frío', 'comfort.3': 'Un poco de frío',
+    'comfort.4': 'Perfecto', 'comfort.5': 'Un poco de calor', 'comfort.6': 'Mucho calor', 'comfort.7': 'Sofocante',
+    'profile.title': 'Tu perfil de comodidad', 'profile.logs': 'REGISTROS',
+    'profile.conf.0': 'Sin datos aún', 'profile.conf.1': 'Recién empezando',
+    'profile.conf.2': 'Aprendiendo tu estilo...', 'profile.conf.3': 'Ajustándose a ti',
+    'profile.conf.4': '¡Casi listo!', 'profile.conf.5': 'Totalmente calibrado ✓',
+    'profile.temp_avg': 'Promedio', 'profile.runs_warm': 'Tiende al calor', 'profile.runs_cold': 'Tiende al frío',
+    'profile.wind_avg': 'Promedio', 'profile.wind_sensitive': 'Sensible al viento', 'profile.wind_resistant': 'Resistente al viento',
+    'profile.stat_temp': '🌡️ Temp', 'profile.stat_wind': '💨 Viento',
+    'profile.streak': 'Racha diaria', 'profile.streak_best': 'Récord:',
+    'profile.streak_0': '¡Registra hoy para empezar una racha!',
+    'profile.streak_1': '¡Empezaste! Registra mañana para seguir',
+    'profile.badges': 'Insignias', 'profile.badges_none': '🏅 Registra un atuendo para ganar insignias',
+    'profile.badges_earned': 'ganadas', 'profile.badges_locked': 'bloqueadas',
+    'profile.stale_title': 'Perfil desactualizado', 'profile.stale_body': 'Registra un atuendo para mantenerlo preciso',
+    'profile.reset': 'Reiniciar perfil',
+    'profile.reset_confirm': '¿Reiniciar tu perfil de comodidad? Esto borra todas las preferencias aprendidas.',
+    'profile.beta': 'Info Beta', 'profile.share': '📤 Compartir datos con el desarrollador',
+    'sunrise.title': 'Amanecer y atardecer', 'sunrise.sunrise': 'Amanecer',
+    'sunrise.sunset': 'Atardecer', 'sunrise.daylight': 'Luz del día',
+    'splash.tagline': 'Pronósticos a tu medida',
+    'splash.btn': '🌤️ Ver mi pronóstico',
+    'splash.note': 'Sweater Weather necesita tu ubicación para mostrarte el pronóstico. Tu ubicación nunca se almacena en ningún servidor.',
+    'error.no_geo': 'La geolocalización no está disponible en tu navegador. Intenta abrir la app en Safari o Chrome.',
+    'error.denied': "Acceso a ubicación denegado. Toca 'Intentar de nuevo' y permite el acceso cuando se solicite.",
+    'error.ios_hint': 'En iPhone, ve a <strong>Ajustes → Privacidad → Localización → Sitios web de Safari</strong> y selecciona <em>Al usar la app</em>.',
+    'error.timeout': 'Se agotó el tiempo para obtener la ubicación. Asegúrate de que los Servicios de Localización estén activos.',
+    'error.unknown': 'No se pudo determinar tu ubicación. Por favor intenta de nuevo.',
+    'error.no_weather': 'No se pudo obtener el clima. Revisa tu conexión e intenta de nuevo.',
+    'error.retry': 'Intentar de nuevo',
+    'loading.location': 'Buscando tu ubicación...', 'loading.weather': 'Obteniendo el clima...',
+    'toast.logged': '¡Guardado! Tu perfil está aprendiendo.',
+    'toast.reset': 'Perfil reiniciado.', 'toast.shared': '¡Datos compartidos! Gracias 🙌',
+    'loc.placeholder': 'Buscar una ciudad…', 'loc.search_btn': 'Buscar',
+    'loc.searching': 'Buscando…', 'loc.no_results': 'No se encontraron resultados.',
+    'loc.error': 'Búsqueda fallida. Revisa tu conexión.',
+    'loc.saved': 'Ubicaciones guardadas', 'loc.current': 'Actual', 'loc.gps': '📡 Usar ubicación GPS actual',
+    'rec.shorts-tee': 'Camiseta y shorts', 'rec.tee-pants': 'Camiseta y pantalón',
+    'rec.long-sleeve': 'Manga larga', 'rec.light-jacket': 'Sudadera',
+    'rec.jacket': 'Chaqueta ligera', 'rec.heavy-jacket': 'Chaqueta gruesa', 'rec.heavy-layers': 'Capas',
+    'item.tank-top': 'Camiseta sin mangas', 'item.tshirt': 'Camiseta',
+    'item.long-sleeve': 'Camisa de manga larga', 'item.sweater': 'Suéter/Sudadera',
+    'item.light-jacket': 'Chaqueta ligera', 'item.heavy-jacket': 'Chaqueta gruesa',
+    'item.shorts': 'Shorts', 'item.light-pants': 'Pantalón ligero',
+    'item.jeans': 'Jeans/Pantalón grueso', 'item.hat': 'Gorro',
+    'item.gloves': 'Guantes', 'item.scarf': 'Bufanda', 'item.umbrella': 'Paraguas',
+    'feel.hot': 'caluroso', 'feel.warm': 'agradablemente cálido', 'feel.comfortable': 'cómodo',
+    'feel.cool': 'fresco', 'feel.cold': 'frío', 'feel.frigid': 'gélido',
+    'narr.today': 'hoy', 'narr.tomorrow': 'mañana',
+    'narr.all_same_a': "Un día {feel} y estable — {rec} de mañana a noche.",
+    'narr.all_same_b': "Un {day} tranquilo. {rec} funciona todo el día.",
+    'narr.all_same_c': "Sin cambios — {rec} es todo lo que necesitas.",
+    'narr.warming_steady': "Inicio {feel} — {rec1} por la mañana, pero el calor llega. Con {rec2} estarás bien al mediodía y por la tarde.",
+    'narr.three_phase': "La mañana {feel} pide {rec1}, {rec2} al calentar al mediodía, y de vuelta a {rec3} al caer la tarde.",
+    'narr.steady_cool': "{rec1} funciona casi todo el día, pero la tarde {feel} significa que querrás {rec2} antes de salir.",
+    'narr.cooling': "Empieza lo suficientemente {feel} para {rec1}, pero enfría — {rec2} al mediodía y {rec3} por la tarde.",
+    'narr.fallback': "{rec1} por la mañana, {rec2} al mediodía y {rec3} por la tarde.",
+    'narr.warm_midday': "Mañana {feel} — {rec1} para empezar, luego {rec2} cuando calienta.",
+    'narr.shift': "{rec1} por la mañana, cambia a {rec2} al mediodía.",
+    'narr.morning_only': "Mañana {feel} — {rec} es lo ideal.",
+    'narr.gusty': " Día ventoso — viento de unos {speed} mph.",
+    'narr.breezy': " Algo de viento {day}, tenlo en cuenta.",
+    'narr.snow': " Se espera nieve — abrígate.",
+    'narr.rain': " Lleva paraguas.",
+    'beta.title': '🧪 Vista previa Beta', 'beta.thanks': '¡Gracias por probar Sweater Weather!',
+    'beta.how_it_works': 'Cómo funciona', 'beta.share_data': 'Comparte tus datos',
+    'beta.send_feedback': 'Enviar comentarios', 'beta.not_updates': '¿No ves actualizaciones?',
+    'beta.share_btn': '📤 Compartir mis datos con el desarrollador',
+    'beta.feedback_btn': '✉️ Enviar comentarios por email', 'beta.refresh_btn': '🔄 Actualizar app',
+    'beta.version': 'Sweater Weather Beta v0.1',
+  }
+};
+
+function t(key) {
+  const lang = isSpanish() ? 'es' : 'en';
+  return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS['en'][key] || key;
+}
+function tFmt(key, vals) {
+  let s = t(key);
+  if (vals) Object.keys(vals).forEach(k => { s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), vals[k]); });
+  return s;
+}
+function recLabel(rec) { return t('rec.' + rec.id); }
+
 // ─── Temperature unit helpers ───
 function isCelsius() { return localStorage.getItem('sweater-weather-unit') === 'C'; }
 function fToC(f) { return Math.round((f - 32) * 5 / 9); }
@@ -3585,6 +3827,7 @@ function tempUnit() { return isCelsius() ? '°C' : '°F'; }
 
 // ─── Settings & theme ───
 function openSettings() {
+  updateSettingsLabels();
   document.getElementById('settings-overlay').classList.add('open');
   document.getElementById('settings-sheet').classList.add('open');
 }
@@ -3613,10 +3856,26 @@ function applyStoredUnit() {
   const toggle = document.getElementById('unit-toggle');
   if (toggle) toggle.checked = isCelsius();
 }
+function toggleLang(useSpanish) {
+  localStorage.setItem('sweater-weather-lang', useSpanish ? 'es' : 'en');
+  updateSettingsLabels();
+  render();
+}
+function applyStoredLang() {
+  const toggle = document.getElementById('lang-toggle');
+  if (toggle) toggle.checked = isSpanish();
+}
+function updateSettingsLabels() {
+  const title = document.getElementById('settings-title');
+  if (title) title.textContent = t('settings.title');
+  const lightLabel = document.getElementById('settings-light-theme-label');
+  if (lightLabel) lightLabel.textContent = t('settings.light_theme');
+}
 
 // Start
 applyStoredTheme();
 applyStoredUnit();
+applyStoredLang();
 showSplash();
 </script>
 <div class="attr-line" style="text-align:center;padding:10px 0 18px;font-size:11px;color:rgba(255,255,255,0.3);">Weather data by <a href="https://open-meteo.com/" target="_blank" style="color:rgba(255,255,255,0.4);">Open-Meteo.com</a></div>
