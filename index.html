@@ -1261,7 +1261,7 @@
   body.light-theme .accessories-alert .alert-text strong { color: rgba(0,0,0,0.85); }
   body.light-theme .hamburger-btn { background: rgba(0,0,0,0.12); border-color: rgba(0,0,0,0.18); box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
   body.light-theme .hamburger-icon span { background: rgba(0,0,0,0.75); }
-  body.light-theme .settings-sheet button[onclick="closeSettings()"] { background: rgba(0,0,0,0.18); border-color: rgba(0,0,0,0.35); color: rgba(0,0,0,0.8); }
+  body.light-theme .settings-sheet button[onclick="closeSettings()"] { background: #b0b0b0; border-color: #888; color: #222; }
 
   /* ─── Log modal — light theme ─── */
   body.light-theme .modal-sheet {
@@ -2365,16 +2365,16 @@ function render(direction) {
   const middayResult   = slotRec(middaySlots);
   const eveningResult  = slotRec(eveningSlots);
 
-  // Pass the same recs into the narrative so it always matches the pill tiles
-  const narrative = generateNarrative(slots, state.profile, dayOffset,
-    morningResult ? morningResult.rec : null,
-    middayResult  ? middayResult.rec  : null,
-    eveningResult ? eveningResult.rec : null);
-
-  // Fallback if a period has no data: use the representative rec
+  // Resolve pill fallbacks FIRST so the narrative gets the exact same recs the pills display
   const pillMorning  = morningResult  || { rec: currentRec, feels: repFeels };
   const pillMidday   = middayResult   || { rec: currentRec, feels: repFeels };
   const pillEvening  = eveningResult  || { rec: currentRec, feels: repFeels };
+
+  // Pass the resolved pill recs into the narrative — guaranteed to match what is shown
+  const narrative = generateNarrative(slots, state.profile, dayOffset,
+    pillMorning.rec,
+    pillMidday.rec,
+    pillEvening.rec);
 
   app.innerHTML = `
     <div class="refresh-bar"><button onclick="window.location.reload(true)">${t('app.refresh')}</button></div>
