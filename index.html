@@ -2481,7 +2481,7 @@ function render(direction) {
               <!-- Big log count -->
               <text x="100" y="82"
                 text-anchor="middle"
-                fill="white"
+                fill="${lt('white','#1a1a2e')}"
                 font-size="38"
                 font-weight="800"
                 font-family="-apple-system,BlinkMacSystemFont,sans-serif">${p.entries}</text>
@@ -2489,7 +2489,7 @@ function render(direction) {
               <!-- "LOGS" label -->
               <text x="100" y="97"
                 text-anchor="middle"
-                fill="rgba(255,255,255,0.45)"
+                fill="${lt('rgba(255,255,255,0.45)','rgba(0,0,0,0.45)')}"
                 font-size="10"
                 font-weight="700"
                 font-family="-apple-system,BlinkMacSystemFont,sans-serif"
@@ -2497,10 +2497,10 @@ function render(direction) {
 
               <!-- Min / Max labels -->
               <text x="22" y="106" text-anchor="middle"
-                fill="rgba(255,255,255,0.3)" font-size="10"
+                fill="${lt('rgba(255,255,255,0.3)','rgba(0,0,0,0.35)')}" font-size="10"
                 font-family="-apple-system,sans-serif">0</text>
               <text x="178" y="106" text-anchor="middle"
-                fill="rgba(255,255,255,0.3)" font-size="10"
+                fill="${lt('rgba(255,255,255,0.3)','rgba(0,0,0,0.35)')}" font-size="10"
                 font-family="-apple-system,sans-serif">${MAX_LOGS}+</text>
             </svg>
 
@@ -2530,21 +2530,21 @@ function render(direction) {
                 const lbl = i === 0 ? bracketStart : i === 6 ? bracketEnd : '';
                 return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
                   <div style="width:18px;height:18px;border-radius:50%;
-                    background:${filled ? '#4ade80' : 'rgba(255,255,255,0.1)'};
-                    border:1.5px solid ${filled ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.15)'};
+                    background:${filled ? '#4ade80' : lt('rgba(255,255,255,0.1)','rgba(0,0,0,0.1)')};
+                    border:1.5px solid ${filled ? 'rgba(74,222,128,0.4)' : lt('rgba(255,255,255,0.15)','rgba(0,0,0,0.15)')};
                     box-shadow:${filled ? '0 0 6px rgba(74,222,128,0.5)' : 'none'};
                   "></div>
-                  <div style="font-size:9px;color:rgba(255,255,255,0.35);width:18px;text-align:center;">${lbl}</div>
+                  <div style="font-size:9px;color:${lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.4)')};width:18px;text-align:center;">${lbl}</div>
                 </div>`;
               }).join('');
 
               return `
-              <div style="background:rgba(255,255,255,0.05);border-radius:14px;padding:12px 14px;margin-bottom:12px;">
+              <div style="background:${lt('rgba(255,255,255,0.05)','rgba(0,0,0,0.05)')};border-radius:14px;padding:12px 14px;margin-bottom:12px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);">Daily Streak</div>
-                  ${streak.best > s && streak.best > 1 ? `<div style="font-size:10px;color:rgba(255,255,255,0.3);">Best: ${streak.best}</div>` : ''}
+                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.45)');}">Daily Streak</div>
+                  ${streak.best > s && streak.best > 1 ? `<div style="font-size:10px;color:${lt('rgba(255,255,255,0.3)','rgba(0,0,0,0.4)')};">Best: ${streak.best}</div>` : ''}
                 </div>
-                <div style="font-size:14px;font-weight:700;color:${s > 0 ? '#4ade80' : 'rgba(255,255,255,0.4)'};margin-bottom:10px;">${streakMsg}</div>
+                <div style="font-size:14px;font-weight:700;color:${s > 0 ? '#4ade80' : lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.4)')};margin-bottom:10px;">${streakMsg}</div>
                 <div style="display:flex;gap:5px;justify-content:center;">${dotCols}</div>
               </div>`;
             })()}
@@ -2553,7 +2553,7 @@ function render(direction) {
             ${(() => {
               const earned = new Set(loadBadges());
               if (earned.size === 0) return `
-                <div style="text-align:center;padding:10px 0 14px;font-size:12px;color:rgba(255,255,255,0.25);">
+                <div style="text-align:center;padding:10px 0 14px;font-size:12px;color:${lt('rgba(255,255,255,0.25)','rgba(0,0,0,0.4)')};">
                   🏅 Log an outfit to start earning badges
                 </div>`;
               const earnedBadges = BADGES.filter(b => earned.has(b.id));
@@ -2561,18 +2561,18 @@ function render(direction) {
               const chips = earnedBadges.map(b =>
                 `<div title="${b.name}: ${b.desc}" style="
                   display:flex;flex-direction:column;align-items:center;gap:3px;
-                  background:rgba(255,255,255,0.07);border-radius:10px;
+                  background:${lt('rgba(255,255,255,0.07)','rgba(0,0,0,0.06)')};border-radius:10px;
                   padding:7px 6px;min-width:44px;cursor:default;
                 ">
                   <div style="font-size:20px;line-height:1;">${b.emoji}</div>
-                  <div style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.45);text-align:center;line-height:1.2;max-width:40px;">${b.name}</div>
+                  <div style="font-size:8px;font-weight:700;color:${lt('rgba(255,255,255,0.45)','rgba(0,0,0,0.5)')};text-align:center;line-height:1.2;max-width:40px;">${b.name}</div>
                 </div>`
               ).join('');
               return `
               <div style="margin-bottom:14px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);">Badges</div>
-                  <div style="font-size:10px;color:rgba(255,255,255,0.25);">${earnedBadges.length}/${BADGES.length} earned · ${locked} locked</div>
+                  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.35)','rgba(0,0,0,0.45)');}">Badges</div>
+                  <div style="font-size:10px;color:${lt('rgba(255,255,255,0.25)','rgba(0,0,0,0.4)')};">${earnedBadges.length}/${BADGES.length} earned · ${locked} locked</div>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;">${chips}</div>
               </div>`;
@@ -2580,13 +2580,13 @@ function render(direction) {
 
             <!-- Stat pills -->
             <div style="display:flex;gap:8px;margin-bottom:${isStale ? '10px' : '0'};">
-              <div style="flex:1;background:rgba(255,255,255,0.07);border-radius:12px;padding:11px 10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.4);margin-bottom:5px;">🌡️ Temp</div>
-                <div style="font-size:14px;font-weight:700;color:#fff;">${p.entries < 3 ? '—' : offsetLabel(p.tempOffset)}</div>
+              <div style="flex:1;background:${lt('rgba(255,255,255,0.07)','rgba(0,0,0,0.06)')};border-radius:12px;padding:11px 10px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin-bottom:5px;">🌡️ Temp</div>
+                <div style="font-size:14px;font-weight:700;color:${lt('#fff','#1a1a2e')};">${p.entries < 3 ? '—' : offsetLabel(p.tempOffset)}</div>
               </div>
-              <div style="flex:1;background:rgba(255,255,255,0.07);border-radius:12px;padding:11px 10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.4);margin-bottom:5px;">💨 Wind</div>
-                <div style="font-size:14px;font-weight:700;color:#fff;">${p.entries < 3 ? '—' : windLabel}</div>
+              <div style="flex:1;background:${lt('rgba(255,255,255,0.07)','rgba(0,0,0,0.06)')};border-radius:12px;padding:11px 10px;text-align:center;">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${lt('rgba(255,255,255,0.4)','rgba(0,0,0,0.45)')};margin-bottom:5px;">💨 Wind</div>
+                <div style="font-size:14px;font-weight:700;color:${lt('#fff','#1a1a2e')};">${p.entries < 3 ? '—' : windLabel}</div>
               </div>
             </div>
 
@@ -2594,7 +2594,7 @@ function render(direction) {
               <span style="font-size:18px;">⚠️</span>
               <div>
                 <div style="font-size:13px;font-weight:700;color:#FFD23F;">Profile aging</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;">Log an outfit to keep it sharp</div>
+                <div style="font-size:12px;color:${lt('rgba(255,255,255,0.5)','rgba(0,0,0,0.5)')};margin-top:1px;">Log an outfit to keep it sharp</div>
               </div>
             </div>` : ''}
           `;
@@ -3571,6 +3571,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') goToDay(state.currentDay - 1);
   if (e.key === 'ArrowRight') goToDay(state.currentDay + 1);
 });
+
+// ─── Light/dark inline style helper ───
+function lt(dark, light) { return document.body.classList.contains('light-theme') ? light : dark; }
 
 // ─── Temperature unit helpers ───
 function isCelsius() { return localStorage.getItem('sweater-weather-unit') === 'C'; }
