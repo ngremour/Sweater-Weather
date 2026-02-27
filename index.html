@@ -1261,6 +1261,7 @@
   body.light-theme .accessories-alert .alert-text strong { color: rgba(0,0,0,0.85); }
   body.light-theme .hamburger-btn { background: rgba(0,0,0,0.12); border-color: rgba(0,0,0,0.18); box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
   body.light-theme .hamburger-icon span { background: rgba(0,0,0,0.75); }
+  body.light-theme .settings-sheet button[onclick="closeSettings()"] { background: rgba(0,0,0,0.07); border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.5); }
 
   /* ─── Log modal — light theme ─── */
   body.light-theme .modal-sheet {
@@ -1456,6 +1457,7 @@
 
 <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
 <div class="settings-sheet" id="settings-sheet">
+  <button onclick="closeSettings()" style="position:absolute;top:14px;right:16px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.7);width:26px;height:26px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
   <div class="settings-title" id="settings-title">⚙️ Settings</div>
   <div class="settings-row">
     <span id="settings-light-theme-label">Light Theme</span>
