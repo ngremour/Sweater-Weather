@@ -1261,7 +1261,20 @@
   body.light-theme .accessories-alert .alert-text strong { color: rgba(0,0,0,0.85); }
   body.light-theme .hamburger-btn { background: rgba(0,0,0,0.12); border-color: rgba(0,0,0,0.18); box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
   body.light-theme .hamburger-icon span { background: rgba(0,0,0,0.75); }
-  body.light-theme .settings-sheet button[onclick="closeSettings()"] { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.52); color: rgba(0,0,0,0.52); }
+  .settings-close-btn {
+    position: absolute; top: 14px; right: 16px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+    color: rgba(255,255,255,0.7); font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  body.light-theme .settings-close-btn {
+    background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.52); color: rgba(0,0,0,0.52);
+  }
+
+  /* ─── Chart time labels ─── */
+  .chart-time-label { fill: rgba(255,255,255,0.4); }
+  body.light-theme .chart-time-label { fill: rgba(0,0,0,0.52); }
 
   /* ─── Log modal — light theme ─── */
   body.light-theme .modal-sheet {
@@ -1457,7 +1470,7 @@
 
 <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
 <div class="settings-sheet" id="settings-sheet">
-  <button onclick="closeSettings()" style="position:absolute;top:14px;right:16px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.7);width:26px;height:26px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+  <button onclick="closeSettings()" class="settings-close-btn">✕</button>
   <div class="settings-title" id="settings-title">⚙️ Settings</div>
   <div class="settings-row">
     <span id="settings-light-theme-label">Light Theme</span>
@@ -2521,7 +2534,7 @@ function render(direction) {
             const tempY = Math.min(y(feels[i]) - 5, H - padBot - 10);
             return `
               <text x="${x(i)}" y="${tempY}" font-size="8.5" fill="rgba(74,222,128,0.9)" text-anchor="${anchor}" font-weight="600">${feelsVal}°</text>
-              <text x="${x(i)}" y="${H}" font-size="8" fill="rgba(255,255,255,0.4)" text-anchor="${anchor}">${lbl}</text>`;
+              <text x="${x(i)}" y="${H}" font-size="8" class="chart-time-label" text-anchor="${anchor}">${lbl}</text>`;
           }).join('');
           // Peak feels-like label
           const peakF = feels.indexOf(Math.max(...feels));
