@@ -1327,6 +1327,13 @@
       <span class="toggle-track"></span>
     </label>
   </div>
+  <div class="settings-row">
+    <span>Use Celsius (°C)</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="unit-toggle" onchange="toggleUnit(this.checked)">
+      <span class="toggle-track"></span>
+    </label>
+  </div>
 </div>
 
 <div class="locations-overlay" id="loc-overlay" onclick="closeLocationsMenu()"></div>
@@ -2024,7 +2031,7 @@ function buildHourlyHTML(dayOffset) {
             <div class="time-slot${s.isNow ? ' now' : ''}">
               <div class="time">${s.isNow ? 'Now' : formatHour(s.hour)}</div>
               <div class="slot-icon">${getWeatherIcon(s.weatherCode)}</div>
-              <div class="slot-temp">${s.feelsLike}°</div>
+              <div class="slot-temp">${displayTemp(s.feelsLike)}°</div>
               <div class="slot-rec">${rec.short}</div>
               <div class="slot-wind">${s.wind} mph</div>
             </div>`;
@@ -2218,7 +2225,7 @@ function render(direction) {
             <div class="pill-label">${label}</div>
             <div class="pill-icon">${p.rec.icon}</div>
             <div class="pill-rec">${p.rec.short}</div>
-            <div class="pill-temp">${p.feels}°F</div>
+            <div class="pill-temp">${displayTemp(p.feels)}${tempUnit()}</div>
             ${rainLine}
           </div>`;
         }).join('')}
@@ -2291,14 +2298,14 @@ function render(direction) {
       <div class="card summary-card">
         <div class="temp-row">
           ${isToday
-            ? `<div class="current-temp">${repTemp}<span>°F</span></div>
-               ${hiTemp !== null ? `<div class="high-low">H:${hiTemp}° L:${loTemp}°</div>` : ''}`
+            ? `<div class="current-temp">${displayTemp(repTemp)}<span>${tempUnit()}</span></div>
+               ${hiTemp !== null ? `<div class="high-low">H:${displayTemp(hiTemp)}° L:${displayTemp(loTemp)}°</div>` : ''}`
             : hiTemp !== null
-              ? `<div class="hi-lo-large"><span class="hi-val">H: ${hiTemp}°</span><span class="lo-val">L: ${loTemp}°</span></div>`
+              ? `<div class="hi-lo-large"><span class="hi-val">H: ${displayTemp(hiTemp)}°</span><span class="lo-val">L: ${displayTemp(loTemp)}°</span></div>`
               : ''
           }
         </div>
-        <div class="feels-like">Feels like ${repFeels}°F · Wind ${repWind} mph</div>
+        <div class="feels-like">Feels like ${displayTemp(repFeels)}${tempUnit()} · Wind ${repWind} mph</div>
         ${narrative ? `<div class="narrative">${narrative}</div>` : ''}
         ${(() => {
           const chartIndices = getHourlyIndicesForDay(hourly.time, dayOffset);
@@ -3565,6 +3572,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') goToDay(state.currentDay + 1);
 });
 
+// ─── Temperature unit helpers ───
+function isCelsius() { return localStorage.getItem('sweater-weather-unit') === 'C'; }
+function fToC(f) { return Math.round((f - 32) * 5 / 9); }
+function displayTemp(f) { if (f === '--' || f === null || f === undefined) return f; return isCelsius() ? fToC(Number(f)) : f; }
+function tempUnit() { return isCelsius() ? '°C' : '°F'; }
+
 // ─── Settings & theme ───
 function openSettings() {
   document.getElementById('settings-overlay').classList.add('open');
@@ -3586,9 +3599,18 @@ function applyStoredTheme() {
     if (toggle) toggle.checked = true;
   }
 }
+function toggleUnit(useCelsius) {
+  localStorage.setItem('sweater-weather-unit', useCelsius ? 'C' : 'F');
+  render();
+}
+function applyStoredUnit() {
+  const toggle = document.getElementById('unit-toggle');
+  if (toggle) toggle.checked = isCelsius();
+}
 
 // Start
 applyStoredTheme();
+applyStoredUnit();
 showSplash();
 </script>
 <div style="text-align:center;padding:10px 0 18px;font-size:11px;color:rgba(255,255,255,0.3);">Weather data by <a href="https://open-meteo.com/" target="_blank" style="color:rgba(255,255,255,0.4);">Open-Meteo.com</a></div>
