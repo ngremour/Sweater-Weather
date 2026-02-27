@@ -1989,20 +1989,21 @@ function getWeatherIcon(code) {
 }
 
 // ─── Narrative generation ───
-function generateNarrative(slots, profile, dayOffset) {
+function generateNarrative(slots, profile, dayOffset, passedMorningRec, passedMiddayRec, passedEveningRec) {
   if (!slots || slots.length === 0) return '';
 
   const morning = slots.filter(s => s.hour >= 6  && s.hour <= 10);
   const midday  = slots.filter(s => s.hour >= 11 && s.hour <= 14);
   const evening = slots.filter(s => s.hour >= 17 && s.hour <= 21);
 
-  const morningRec = morning.length ? getRecommendation(morning[0].feelsLike, morning[0].wind, profile) : null;
-  const middayRec  = midday.length  ? getRecommendation(midday[Math.floor(midday.length/2)].feelsLike, midday[Math.floor(midday.length/2)].wind, profile) : null;
-  const eveningRec = evening.length ? getRecommendation(evening[0].feelsLike, evening[0].wind, profile) : null;
+  // Use pre-computed recs from pills when available — guarantees narrative matches pill tiles exactly
+  const morningRec = passedMorningRec || (morning.length ? getRecommendation(morning[Math.floor(morning.length/2)].feelsLike, morning[Math.floor(morning.length/2)].wind, profile) : null);
+  const middayRec  = passedMiddayRec  || (midday.length  ? getRecommendation(midday[Math.floor(midday.length/2)].feelsLike,   midday[Math.floor(midday.length/2)].wind,   profile) : null);
+  const eveningRec = passedEveningRec || (evening.length ? getRecommendation(evening[Math.floor(evening.length/2)].feelsLike, evening[Math.floor(evening.length/2)].wind, profile) : null);
 
-  const morningF = morning.length ? Math.round(morning[0].feelsLike) : null;
+  const morningF = morning.length ? Math.round(morning[Math.floor(morning.length/2)].feelsLike) : null;
   const middayF  = midday.length  ? Math.round(midday[Math.floor(midday.length/2)].feelsLike) : null;
-  const eveningF = evening.length ? Math.round(evening[0].feelsLike) : null;
+  const eveningF = evening.length ? Math.round(evening[Math.floor(evening.length/2)].feelsLike) : null;
 
   const feelWord = f => f >= 80 ? t('feel.hot') : f >= 70 ? t('feel.warm') : f >= 58 ? t('feel.comfortable') : f >= 45 ? t('feel.cool') : f >= 32 ? t('feel.cold') : t('feel.frigid');
   const dayWord  = dayOffset === 0 ? t('narr.today') : dayOffset === 1 ? t('narr.tomorrow') : getDayLabel(dayOffset).split(',')[0];
@@ -2291,9 +2292,7 @@ function render(direction) {
   const currentRec = getRecommendation(repFeels, repWind, state.profile);
   updateBackground(repFeels);
 
-  const narrative = generateNarrative(slots, state.profile, dayOffset);
-
-  // Morning / Midday / Evening recs from slots
+  // Morning / Midday / Evening recs from slots — computed FIRST so narrative can share them
   const morningSlots  = slots.filter(s => s.hour >= 6  && s.hour <= 10);
   const middaySlots   = slots.filter(s => s.hour >= 11 && s.hour <= 14);
   const eveningSlots  = slots.filter(s => s.hour >= 17 && s.hour <= 21);
@@ -2311,6 +2310,12 @@ function render(direction) {
   const morningResult  = slotRec(morningSlots);
   const middayResult   = slotRec(middaySlots);
   const eveningResult  = slotRec(eveningSlots);
+
+  // Pass the same recs into the narrative so it always matches the pill tiles
+  const narrative = generateNarrative(slots, state.profile, dayOffset,
+    morningResult ? morningResult.rec : null,
+    middayResult  ? middayResult.rec  : null,
+    eveningResult ? eveningResult.rec : null);
 
   // Fallback if a period has no data: use the representative rec
   const pillMorning  = morningResult  || { rec: currentRec, feels: repFeels };
