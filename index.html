@@ -2920,6 +2920,7 @@ function initSwipe() {
 
 // ─── Log modal handlers ───
 function openLogModal() {
+  gtag('event', 'open_log_modal');
   state.logModalOpen = true;
   state.selectedItems = [];
   state.logComfort = 4;
@@ -3130,6 +3131,11 @@ function submitLog() {
   recomputeOffsets(log, state.profile);
   saveProfile(state.profile);
 
+  gtag('event', 'outfit_logged', {
+    comfort: state.logComfort,
+    rec: (state.currentRec && state.currentRec.id) || 'unknown',
+    feels_like: Math.round(currentFeels || 0),
+  });
   closeLogModal();
   showToast(t('toast.logged'));
   checkAndAwardBadges(logEntry);
@@ -4333,6 +4339,7 @@ function closeSettings() {
   document.getElementById('settings-sheet').classList.remove('open');
 }
 function toggleTheme(isLight) {
+  gtag('event', 'theme_toggled', { theme: isLight ? 'light' : 'dark' });
   document.body.classList.toggle('light-theme', isLight);
   localStorage.setItem('sweater-weather-theme', isLight ? 'light' : 'dark');
   render();
@@ -4354,6 +4361,7 @@ function applyStoredUnit() {
   if (toggle) toggle.checked = isCelsius();
 }
 function setLang(lang) {
+  gtag('event', 'language_set', { language: lang });
   localStorage.setItem('sweater-weather-lang', lang);
   applyStoredLang();
   updateSettingsLabels();
